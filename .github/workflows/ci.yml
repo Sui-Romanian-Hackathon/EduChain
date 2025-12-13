@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MOVE_DIR: educhain-move
+  FRONTEND_DIR: educhain-frontend
+
+jobs:
+  move:
+    name: Move (build + test + lint)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Move directory
+        run: |
+          echo "MOVE_DIR=${MOVE_DIR}"
+          test -d "${MOVE_DIR}"
+          test -f "${MOVE_DIR}/Move.toml"
+
+      - name: Cache suiup downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/suiup
+            ~/.local/share/suiup
+            ~/.local/bin
+          key: ${{ runner.os }}-suiup-${{ hashFiles('.sui-version') }}
+          restore-keys: |
+            ${{ runner.os }}-suiup-
+
+      - name: Install suiup
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/Mystenlabs/suiup/main/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          command -v suiup
+          suiup --version
+
+      - name: Install Sui CLI (from .sui-version)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RAW="$(cat .sui-version 2>/dev/null || echo testnet)"
+          # Accept either "testnet" or "sui@testnet-1.xx.y" styles
+          if echo "$RAW" | grep -q '^sui'; then
+            SPEC="$RAW"
+          else
+            SPEC="sui@$RAW"   # becomes sui@testnet, sui@testnet-1.xx.y, sui@1.xx.y, etc.
+          fi
+
+          echo "Installing: $SPEC"
+          # -y also accepts updating the default binary to what you install
+          suiup install "$SPEC" -y
+
+          # default binaries are placed in ~/.local/bin (make sure it's on PATH)
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+          command -v sui
+          sui --version
+
+      - name: Move build (lint, warnings as errors)
+        working-directory: ${{ env.MOVE_DIR }}
+        run: |
+          sui move --lint --warnings-are-errors build
+
+      - name: Move tests (lint, warnings as errors)
+        working-directory: ${{ env.MOVE_DIR }}
+        run: |
+          sui move --lint --warnings-are-errors test
+
+  frontend:
+    name: Frontend (lint + typecheck + test + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.FRONTEND_DIR }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate frontend directory
+        run: |
+          echo "FRONTEND_DIR=${FRONTEND_DIR}"
+          echo "PWD=$(pwd)"
+          ls -la
+          test -f package.json
+          test -f yarn.lock
+          test -f tsconfig.json
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+          cache-dependency-path: ${{ env.FRONTEND_DIR }}/yarn.lock
+
+      - name: Install deps
+        run: |
+          corepack enable
+          yarn install
+
+      - name: Lint
+        run: yarn lint
+
+      - name: Typecheck
+        run: yarn type-check
+
+      # Optional: only runs if a "test" script exists
+      - name: Unit tests (optional)
+        run: |
+          node -e "process.exit(require('./package.json').scripts?.test ? 0 : 1)" \
+            && yarn test \
+            || echo "No test script; skipping."
+
+      - name: Build
+        run: yarn build
