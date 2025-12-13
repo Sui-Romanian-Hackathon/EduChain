@@ -20,7 +20,6 @@ const backendUrlRaw = process.env.NEXT_PUBLIC_BACKEND_URL
 const packageIdRaw = process.env.NEXT_PUBLIC_SUI_PACKAGE_ID
 const catalogIdRaw = process.env.NEXT_PUBLIC_COURSE_CATALOG_ID
 const registryIdRaw = process.env.NEXT_PUBLIC_PROPOSAL_REGISTRY_ID
-const useMockDataRaw = process.env.NEXT_PUBLIC_USE_MOCK_DATA
 
 // Process and validate values
 const networkValue =
@@ -37,19 +36,13 @@ const catalogIdValue = catalogIdRaw && typeof catalogIdRaw === "string" && catal
 
 const registryIdValue = registryIdRaw && typeof registryIdRaw === "string" && registryIdRaw.trim() ? registryIdRaw.trim() : ""
 
-const useMockDataValue =
-	useMockDataRaw && typeof useMockDataRaw === "string"
-		? ["1", "true", "yes", "on"].includes(useMockDataRaw.trim().toLowerCase())
-		: false
-
 // Debug logging in development
 if (process.env.NODE_ENV === "development") {
 	console.log("[Config] Environment variables:", {
 		NEXT_PUBLIC_SUI_NETWORK: networkRaw || "undefined",
 		NEXT_PUBLIC_SUI_PACKAGE_ID: packageIdRaw ? `${packageIdRaw.slice(0, 10)}...` : "undefined",
 		NEXT_PUBLIC_COURSE_CATALOG_ID: catalogIdRaw ? `${catalogIdRaw.slice(0, 10)}...` : "undefined",
-		NEXT_PUBLIC_PROPOSAL_REGISTRY_ID: registryIdRaw ? `${registryIdRaw.slice(0, 10)}...` : "undefined",
-		NEXT_PUBLIC_USE_MOCK_DATA: useMockDataRaw || "undefined",
+		NEXT_PUBLIC_PROPOSAL_REGISTRY_ID: registryIdRaw ? `${registryIdRaw.slice(0, 10)}...` : "undefined"
 	})
 }
 
@@ -60,8 +53,7 @@ export const APP_CONFIG = {
 	backendUrl: backendUrlValue,
 	packageId: packageIdValue,
 	courseCatalogId: catalogIdValue,
-	proposalRegistryId: registryIdValue,
-	useMockData: useMockDataValue,
+	proposalRegistryId: registryIdValue
 }
 
 export function suiChainId(network: SuiNetwork): `sui:${SuiNetwork}` {

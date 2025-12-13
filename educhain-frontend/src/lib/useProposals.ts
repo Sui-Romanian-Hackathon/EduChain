@@ -108,9 +108,8 @@ export function useProposals(limit = 50) {
             ...p,
             title: fields?.title ? String(fields.title) : p.title,
             description: fields?.description ? String(fields.description) : p.description,
-            budget: parseU64(fields?.budget) ?? p.budget,
-            yesVotes: parseU64(fields?.yes_votes) ?? p.yesVotes,
-            noVotes: parseU64(fields?.no_votes) ?? p.noVotes,
+            yesVotes: parseU64(fields?.yes) ?? p.yesVotes,
+            noVotes: parseU64(fields?.no) ?? p.noVotes,
           };
         });
 

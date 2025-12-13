@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Button,
@@ -13,30 +13,81 @@ import {
   Textarea,
   Title,
   Code,
+  Select,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient, useSuiClientQuery } from '@mysten/dapp-kit';
 import { APP_CONFIG, suiChainId } from '@/lib/config';
-import { buildCreateCourseTx, buildCreateProposalTx, buildIssueCertificateTx } from '@/lib/sui';
+import { buildCreateCourseTx, buildCreateProposalTx, buildIssueCertificateTx, buildSubmitResultTx, structType } from '@/lib/sui';
 import { useCaps } from '@/lib/useCaps';
+import { useCourses } from '@/lib/useCourses';
 
 export function AdminPanel() {
   const client = useSuiClient();
   const account = useCurrentAccount();
   const { caps } = useCaps();
+  const { courses } = useCourses(200);
   const { mutate: signAndExecuteTransaction, isPending: txPending } = useSignAndExecuteTransaction();
+
+  const initializedEventType = useMemo(
+    () => (APP_CONFIG.packageId ? structType('educhain', 'Initialized') : ''),
+    [],
+  );
+  const initialized = useSuiClientQuery(
+    'queryEvents',
+    {
+      query: { MoveEventType: initializedEventType },
+      limit: 1,
+      order: 'descending',
+    },
+    { enabled: Boolean(APP_CONFIG.packageId && initializedEventType) },
+  );
+
+  const initInfo = useMemo(() => {
+    const evt: any = initialized.data?.data?.[0];
+    const pj = evt?.parsedJson ?? null;
+    if (!pj || typeof pj !== 'object') return null;
+    return {
+      publisher: pj.publisher ? String(pj.publisher) : null,
+      courseCatalogId: pj.course_catalog_id ? String(pj.course_catalog_id) : null,
+      proposalRegistryId: pj.proposal_registry_id ? String(pj.proposal_registry_id) : null,
+      teacherCapId: pj.teacher_cap_id ? String(pj.teacher_cap_id) : null,
+      adminCapId: pj.admin_cap_id ? String(pj.admin_cap_id) : null,
+      issuerCapId: pj.issuer_cap_id ? String(pj.issuer_cap_id) : null,
+    };
+  }, [initialized.data]);
 
   const [courseTitle, setCourseTitle] = useState('');
   const [courseUri, setCourseUri] = useState('');
 
   const [proposalTitle, setProposalTitle] = useState('');
   const [proposalDesc, setProposalDesc] = useState('');
-  const [proposalBudget, setProposalBudget] = useState<number>(100);
 
-  const [certCourseId, setCertCourseId] = useState<number>(1);
+  const [resultCourseId, setResultCourseId] = useState<string>('');
+  const [resultStudent, setResultStudent] = useState('');
+  const [resultScore, setResultScore] = useState<number>(100);
+
+  const [certCourseId, setCertCourseId] = useState<string>('');
   const [certStudent, setCertStudent] = useState('');
-  const [certMetadataUri, setCertMetadataUri] = useState('ipfs://... or https://...');
+  const [certMetadataUri, setCertMetadataUri] = useState('');
+
+  const courseOptions = useMemo(
+    () =>
+      courses.map((c) => ({
+        value: String(c.id),
+        label: `${c.title ?? `Course #${c.id}`} (#${c.id})`,
+      })),
+    [courses],
+  );
+
+  // Auto-select first course once loaded (only if nothing selected yet)
+  useEffect(() => {
+    if (!resultCourseId && courseOptions.length) setResultCourseId(courseOptions[0].value);
+  }, [courseOptions, resultCourseId]);
+  useEffect(() => {
+    if (!certCourseId && courseOptions.length) setCertCourseId(courseOptions[0].value);
+  }, [courseOptions, certCourseId]);
 
   const createCourse = async () => {
     if (!APP_CONFIG.packageId || !APP_CONFIG.courseCatalogId) {
@@ -88,12 +139,55 @@ export function AdminPanel() {
         adminCapId: caps.adminCapId,
         title: proposalTitle || 'Untitled proposal',
         description: proposalDesc || 'Description…',
-        budget: proposalBudget ?? 0,
       });
       signAndExecuteTransaction(
         { transaction: tx as any, chain: suiChainId(APP_CONFIG.network) },
         {
           onSuccess: (res) => notifications.show({ title: 'Proposal created', message: `Tx: ${res.digest}` }),
+          onError: (e) => notifications.show({ color: 'red', title: 'Transaction failed', message: e.message }),
+        },
+      );
+    } catch (e: any) {
+      notifications.show({ color: 'red', title: 'Error', message: e.message ?? 'Unknown error' });
+    }
+  };
+
+  const submitResult = async () => {
+    if (!APP_CONFIG.packageId || !APP_CONFIG.courseCatalogId) {
+      notifications.show({
+        color: 'red',
+        title: 'Missing configuration',
+        message: 'Set NEXT_PUBLIC_SUI_PACKAGE_ID and NEXT_PUBLIC_COURSE_CATALOG_ID in educhain-frontend/.env.local and restart.',
+      });
+      return;
+    }
+    if (!caps.teacherCapId) {
+      notifications.show({ color: 'yellow', title: 'Missing TeacherCap', message: 'This wallet has no TeacherCap.' });
+      return;
+    }
+
+    const student = resultStudent.trim();
+    if (!student || !student.startsWith('0x')) {
+      notifications.show({ color: 'yellow', title: 'Invalid student address', message: 'Enter a valid Sui address.' });
+      return;
+    }
+    if (!resultCourseId) {
+      notifications.show({ color: 'yellow', title: 'Select a course', message: 'Pick a course from the dropdown.' });
+      return;
+    }
+
+    try {
+      const tx = await buildSubmitResultTx(client as any, {
+        teacherCapId: caps.teacherCapId,
+        courseId: resultCourseId,
+        student,
+        completed: true,
+        score: resultScore ?? 0,
+      });
+      signAndExecuteTransaction(
+        { transaction: tx as any, chain: suiChainId(APP_CONFIG.network) },
+        {
+          onSuccess: (res) => notifications.show({ title: 'Result submitted', message: `Tx: ${res.digest}` }),
           onError: (e) => notifications.show({ color: 'red', title: 'Transaction failed', message: e.message }),
         },
       );
@@ -121,13 +215,17 @@ export function AdminPanel() {
       notifications.show({ color: 'yellow', title: 'Invalid student address', message: 'Enter a valid Sui address.' });
       return;
     }
+    if (!certCourseId) {
+      notifications.show({ color: 'yellow', title: 'Select a course', message: 'Pick a course from the dropdown.' });
+      return;
+    }
 
     try {
       const tx = await buildIssueCertificateTx(client as any, {
         issuerCapId: caps.issuerCapId,
-        courseId: certCourseId ?? 0,
+        courseId: certCourseId,
         student,
-        metadataUri: certMetadataUri || 'ipfs://... or https://...',
+        metadataUri: certMetadataUri || '',
       });
       signAndExecuteTransaction(
         { transaction: tx as any, chain: suiChainId(APP_CONFIG.network) },
@@ -166,6 +264,40 @@ export function AdminPanel() {
         </Stack>
       </Alert>
 
+      <Alert icon={<IconInfoCircle size={18} />} title="init_state (Initialized event)" radius="lg">
+        {!APP_CONFIG.packageId ? (
+          <Text size="sm">Set <Code>NEXT_PUBLIC_SUI_PACKAGE_ID</Code> to enable chain lookup.</Text>
+        ) : initialized.isPending ? (
+          <Text size="sm">Loading latest Initialized event from chain…</Text>
+        ) : !initInfo ? (
+          <Text size="sm" c="dimmed">
+            No Initialized event found for this package on {APP_CONFIG.network}. That usually means <Code>init_state</Code>{' '}
+            hasn’t been called yet (or you’re on the wrong network).
+          </Text>
+        ) : (
+          <Stack gap={6}>
+            <Text size="sm">
+              Publisher (received caps): <Code>{initInfo.publisher ?? '—'}</Code>
+            </Text>
+            {account?.address && initInfo.publisher && account.address !== initInfo.publisher && (
+              <Text size="sm" c="yellow">
+                Your connected wallet (<Code>{account.address}</Code>) is different from the publisher above, so it won’t have the caps unless they were
+                transferred to you.
+              </Text>
+            )}
+            <Text size="sm">
+              TeacherCap id: <Code>{initInfo.teacherCapId ?? '—'}</Code>
+            </Text>
+            <Text size="sm">
+              AdminCap id: <Code>{initInfo.adminCapId ?? '—'}</Code>
+            </Text>
+            <Text size="sm">
+              IssuerCap id: <Code>{initInfo.issuerCapId ?? '—'}</Code>
+            </Text>
+          </Stack>
+        )}
+      </Alert>
+
       <Card withBorder radius="lg" p="lg">
         <Title order={4}>Create course</Title>
         <Stack mt="sm">
@@ -185,12 +317,52 @@ export function AdminPanel() {
       </Card>
 
       <Card withBorder radius="lg" p="lg">
+        <Title order={4}>Mark course completed (submit result)</Title>
+        <Text size="sm" c="dimmed" mt={4}>
+          Teacher-only. This sets the student’s enrollment to <b>completed</b> and records a score. Required before issuing a certificate.
+        </Text>
+        <Stack mt="sm">
+          <Select
+            label="Course"
+            placeholder={courseOptions.length ? 'Select a course…' : 'No courses found yet'}
+            data={courseOptions}
+            value={resultCourseId}
+            onChange={(v) => setResultCourseId(v ?? '')}
+            searchable
+            nothingFoundMessage="No matching courses"
+            disabled={!courseOptions.length}
+          />
+          <TextInput
+            label="Student address"
+            placeholder="0x..."
+            value={resultStudent}
+            onChange={(e) => setResultStudent(e.currentTarget.value)}
+          />
+          <NumberInput label="Score" value={resultScore} onChange={(v) => setResultScore(Number(v))} min={0} />
+          <Group justify="flex-end">
+            <Button onClick={submitResult} loading={txPending} disabled={!account}>
+              Submit result
+            </Button>
+          </Group>
+        </Stack>
+      </Card>
+
+      <Card withBorder radius="lg" p="lg">
         <Title order={4}>Issue certificate</Title>
         <Text size="sm" c="dimmed" mt={4}>
           Mints an owned Certificate object to the student address (requires the student to have completed the course).
         </Text>
         <Stack mt="sm">
-          <NumberInput label="Course id" value={certCourseId} onChange={(v) => setCertCourseId(Number(v))} min={0} />
+          <Select
+            label="Course"
+            placeholder={courseOptions.length ? 'Select a course…' : 'No courses found yet'}
+            data={courseOptions}
+            value={certCourseId}
+            onChange={(v) => setCertCourseId(v ?? '')}
+            searchable
+            nothingFoundMessage="No matching courses"
+            disabled={!courseOptions.length}
+          />
           <TextInput
             label="Student address"
             placeholder="0x..."
@@ -199,7 +371,7 @@ export function AdminPanel() {
           />
           <TextInput
             label="Metadata URI"
-            description="Where the certificate metadata lives (IPFS / Arweave / HTTPS)"
+            description='Optional. You can leave this blank and use the "Hosted metadata" link shown on Profile after mint.'
             value={certMetadataUri}
             onChange={(e) => setCertMetadataUri(e.currentTarget.value)}
           />
@@ -220,12 +392,6 @@ export function AdminPanel() {
             minRows={3}
             value={proposalDesc}
             onChange={(e) => setProposalDesc(e.currentTarget.value)}
-          />
-          <NumberInput
-            label="Budget"
-            value={proposalBudget}
-            onChange={(v) => setProposalBudget(Number(v))}
-            min={0}
           />
           <Group justify="flex-end">
             <Button onClick={createProposal} loading={txPending} disabled={!account}>

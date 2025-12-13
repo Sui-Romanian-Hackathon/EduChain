@@ -1,9 +1,15 @@
 'use client';
 
-import { Card, Text, Title, Group, Stack, Button, SimpleGrid, Code, Divider } from '@mantine/core';
+import { Card, Text, Title, Group, Stack, Button, SimpleGrid, Code, Divider, Anchor } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
 import { useProfile } from '@/lib/useProfile';
+import { useEnrollments } from '@/lib/useEnrollments';
+import { useCourses } from '@/lib/useCourses';
+import { useResults } from '@/lib/useResults';
+import { useCertificates } from '@/lib/useCertificates';
+import { useVotes } from '@/lib/useVotes';
+import { useProposals } from '@/lib/useProposals';
 import { APP_CONFIG, shortAddress, suiChainId } from '@/lib/config';
 import { buildCreateProfileTx } from '@/lib/sui';
 
@@ -11,6 +17,12 @@ export function ProfilePanel() {
   const client = useSuiClient();
   const account = useCurrentAccount();
   const { profile, refetch, isPending } = useProfile();
+  const { enrollments } = useEnrollments(200);
+  const { completedCourseIds, resultByCourseId } = useResults(500);
+  const { courses } = useCourses(200);
+  const { certificates } = useCertificates(50);
+  const { votedProposalIds, votedChoiceByProposalId } = useVotes(500);
+  const { proposals } = useProposals(200);
   const { mutate: signAndExecuteTransaction, isPending: txPending } = useSignAndExecuteTransaction();
 
   const onCreateProfile = async () => {
@@ -93,14 +105,96 @@ export function ProfilePanel() {
                 <Text c="dimmed" size="sm">
                   Completed courses
                 </Text>
-                <Text>{profile.completedCourses.length ? profile.completedCourses.join(', ') : '—'}</Text>
+                <Text>
+                  {enrollments.filter((e) => completedCourseIds.has(e.courseId)).length
+                    ? enrollments
+                        .filter((e) => completedCourseIds.has(e.courseId))
+                        .map((e) => {
+                          const course = courses.find((c) => c.id === e.courseId);
+                          const score = resultByCourseId.get(e.courseId)?.score;
+                          const scoreLabel = score != null ? ` — score ${score}` : '';
+                          return course?.title
+                            ? `${course.title} (#${e.courseId})${scoreLabel}`
+                            : `#${e.courseId}${scoreLabel}`;
+                        })
+                        .join(', ')
+                    : '—'}
+                </Text>
+              </Card>
+
+              <Card withBorder radius="lg" p="md">
+                <Text c="dimmed" size="sm">
+                  Enrolled courses
+                </Text>
+                <Text>
+                  {enrollments.length
+                    ? enrollments
+                        .map((e) => {
+                          const course = courses.find((c) => c.id === e.courseId);
+                          const done = completedCourseIds.has(e.courseId);
+                          const score = done ? resultByCourseId.get(e.courseId)?.score : undefined;
+                          const suffix = done ? ` ✅${score != null ? ` (${score})` : ''}` : '';
+                          return course?.title ? `${course.title} (#${e.courseId})${suffix}` : `#${e.courseId}${suffix}`;
+                        })
+                        .join(', ')
+                    : '—'}
+                </Text>
               </Card>
 
               <Card withBorder radius="lg" p="md">
                 <Text c="dimmed" size="sm">
                   Voted proposals
                 </Text>
-                <Text>{profile.votedProposals.length ? profile.votedProposals.join(', ') : '—'}</Text>
+                <Text>
+                  {votedProposalIds.size
+                    ? [...votedProposalIds]
+                        .sort((a, b) => a - b)
+                        .map((id) => {
+                          const title = proposals.find((p) => p.id === id)?.title ?? `#${id}`;
+                          const choice = votedChoiceByProposalId.get(id);
+                          const choiceLabel = choice === 0 ? 'No' : 'Yes';
+                          return `${title} (${choiceLabel})`;
+                        })
+                        .join(', ')
+                    : '—'}
+                </Text>
+              </Card>
+
+              <Card withBorder radius="lg" p="md" style={{ gridColumn: '1 / -1' }}>
+                <Text c="dimmed" size="sm">
+                  Certificates (owned)
+                </Text>
+                {certificates.length ? (
+                  <Stack gap={6} mt={6}>
+                    {certificates.map((c) => {
+                      const course = courses.find((x) => x.id === c.courseId);
+                      return (
+                        <Group key={c.objectId} justify="space-between" align="flex-start" wrap="nowrap">
+                          <Stack gap={2} style={{ minWidth: 0 }}>
+                            <Text size="sm" fw={600} lineClamp={1}>
+                              {course?.title ? `${course.title} (#${c.courseId})` : `Course #${c.courseId}`}
+                            </Text>
+                            <Text size="xs" c="dimmed" lineClamp={1}>
+                              Score: <b>{c.score}</b> • Object: <Code>{c.objectId}</Code>
+                            </Text>
+                          </Stack>
+                          <Stack gap={2} align="flex-end">
+                            <Anchor href={`/api/certificates/${c.objectId}`} target="_blank" rel="noreferrer" size="xs">
+                              Hosted metadata
+                            </Anchor>
+                            {c.metadataUri ? (
+                              <Anchor href={c.metadataUri} target="_blank" rel="noreferrer" size="xs" c="dimmed">
+                                On-chain metadata_uri
+                              </Anchor>
+                            ) : null}
+                          </Stack>
+                        </Group>
+                      );
+                    })}
+                  </Stack>
+                ) : (
+                  <Text size="sm">—</Text>
+                )}
               </Card>
 
               <Card withBorder radius="lg" p="md" style={{ gridColumn: '1 / -1' }}>

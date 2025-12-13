@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, Text, Title, SimpleGrid, Button, Group, Stack, Skeleton, Badge, Progress, TextInput } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
 import { useProposals } from '@/lib/useProposals';
 import { useProfile } from '@/lib/useProfile';
+import { useVotes } from '@/lib/useVotes';
 import { APP_CONFIG, suiChainId } from '@/lib/config';
 import { buildCreateProfileTx, buildVoteTx } from '@/lib/sui';
 
@@ -14,9 +15,16 @@ export function ProposalsPanel() {
   const account = useCurrentAccount();
   const { profile } = useProfile();
   const { proposals, loading, source } = useProposals(50);
+  const { votedProposalIds, refetch: refetchVotes } = useVotes(500);
 
   const { mutate: signAndExecuteTransaction, isPending: txPending } = useSignAndExecuteTransaction();
   const [filter, setFilter] = useState('');
+  const [optimisticVoted, setOptimisticVoted] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    // Reset optimistic state when wallet changes
+    setOptimisticVoted(new Set());
+  }, [account?.address]);
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -49,7 +57,16 @@ export function ProposalsPanel() {
       signAndExecuteTransaction(
         { transaction: tx as any, chain: suiChainId(APP_CONFIG.network) },
         {
-          onSuccess: (res) => notifications.show({ title: 'Vote submitted', message: `Tx: ${res.digest}` }),
+          onSuccess: (res) => {
+            setOptimisticVoted((prev) => {
+              const next = new Set(prev);
+              next.add(proposalId);
+              return next;
+            });
+            // Best-effort refresh VoteCast events so UI stays consistent after navigation.
+            refetchVotes();
+            notifications.show({ title: 'Vote submitted', message: `Tx: ${res.digest}` });
+          },
           onError: (e) => notifications.show({ color: 'red', title: 'Transaction failed', message: e.message }),
         },
       );
@@ -100,7 +117,7 @@ export function ProposalsPanel() {
       ) : (
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
           {filtered.map((p) => {
-            const voted = profile?.votedProposals?.includes(p.id) ?? false;
+            const voted = votedProposalIds.has(p.id) || optimisticVoted.has(p.id);
             const yes = p.yesVotes ?? 0;
             const no = p.noVotes ?? 0;
             const total = Math.max(1, yes + no);
@@ -122,7 +139,7 @@ export function ProposalsPanel() {
 
                   <Group justify="space-between" mt="xs">
                     <Text size="sm" c="dimmed">
-                      Budget: <b>{p.budget ?? 0}</b>
+                      Votes
                     </Text>
                     <Badge color={voted ? 'green' : 'gray'} variant="light">
                       {voted ? 'Voted' : 'Not voted'}

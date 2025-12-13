@@ -18,33 +18,6 @@ export function useCourses(limit = 50) {
 	const client = useSuiClient()
 	const enabled = Boolean(APP_CONFIG.packageId)
 
-	const mockCourses: Course[] = useMemo(() => {
-		const now = Date.now()
-		return [
-			{
-				id: 1,
-				objectId: "mock-course-1",
-				title: "Intro to Sui: Objects, Ownership, and Transactions",
-				contentUri: "https://docs.sui.io/",
-				createdAtMs: now - 10_000
-			},
-			{
-				id: 2,
-				objectId: "mock-course-2",
-				title: "Move Basics: Structs, Abilities, and Entry Functions",
-				contentUri: "https://move-book.com/",
-				createdAtMs: now - 20_000
-			},
-			{
-				id: 3,
-				objectId: "mock-course-3",
-				title: "Designing NFT-like Credentials on Sui",
-				contentUri: "https://docs.sui.io/concepts/object-model",
-				createdAtMs: now - 30_000
-			}
-		]
-	}, [])
-
 	const eventType = useMemo(() => (APP_CONFIG.packageId ? structType("educhain", "CourseCreated") : ""), [])
 
 	const backend = useQuery<{ data: BackendEventRow[]; nextCursor: string | null }>({
@@ -98,11 +71,6 @@ export function useCourses(limit = 50) {
 		let cancelled = false
 
 		async function hydrate() {
-			if (APP_CONFIG.useMockData || !APP_CONFIG.packageId) {
-				if (!cancelled) setCourses(mockCourses)
-				return
-			}
-
 			if (!rawEvents?.length) {
 				setCourses([])
 				return
@@ -152,9 +120,9 @@ export function useCourses(limit = 50) {
 	}, [client, rawEvents])
 
 	return {
-		courses: APP_CONFIG.useMockData || !APP_CONFIG.packageId ? mockCourses : courses,
-		loading: APP_CONFIG.useMockData || !APP_CONFIG.packageId ? false : isLoading,
+		courses,
+		loading: isLoading,
 		error,
-		source: APP_CONFIG.useMockData || !APP_CONFIG.packageId ? "mock" : APP_CONFIG.backendUrl && backend.data && !backend.error ? "backend" : "chain"
+		source: APP_CONFIG.backendUrl && backend.data && !backend.error ? "backend" : "chain"
 	} as const
 }

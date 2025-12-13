@@ -80,7 +80,7 @@ export async function buildCreateCourseTx(
 
 export async function buildCreateProposalTx(
   _client: SuiClient,
-  args: { adminCapId: string; title: string; description: string; budget: string | number },
+  args: { adminCapId: string; title: string; description: string },
 ) {
   if (!APP_CONFIG.proposalRegistryId) throw new Error('Missing NEXT_PUBLIC_PROPOSAL_REGISTRY_ID');
 
@@ -92,7 +92,6 @@ export async function buildCreateProposalTx(
       tx.object(APP_CONFIG.proposalRegistryId),
       tx.pure.string(args.title),
       tx.pure.string(args.description),
-      tx.pure.u64(args.budget),
     ],
   });
 
@@ -114,6 +113,33 @@ export async function buildIssueCertificateTx(
       tx.pure.u64(args.courseId),
       tx.pure.address(args.student),
       tx.pure.string(args.metadataUri),
+    ],
+  });
+  return tx;
+}
+
+export async function buildSubmitResultTx(
+  _client: SuiClient,
+  args: {
+    teacherCapId: string;
+    courseId: string | number;
+    student: string;
+    completed: boolean;
+    score: string | number;
+  },
+) {
+  if (!APP_CONFIG.courseCatalogId) throw new Error('Missing NEXT_PUBLIC_COURSE_CATALOG_ID');
+
+  const tx = new Transaction();
+  tx.moveCall({
+    target: moveTarget('educhain', 'submit_result'),
+    arguments: [
+      tx.object(args.teacherCapId),
+      tx.object(APP_CONFIG.courseCatalogId),
+      tx.pure.u64(args.courseId),
+      tx.pure.address(args.student),
+      tx.pure.bool(args.completed),
+      tx.pure.u64(args.score),
     ],
   });
   return tx;

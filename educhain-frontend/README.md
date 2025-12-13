@@ -27,7 +27,7 @@ EduCityChain Frontend is a full-featured web application that enables users to:
 - **Create and manage profiles** that track learning and civic achievements
 - **Browse and enroll in courses** stored on-chain
 - **Vote on civic proposals** and participate in governance
-- **View achievements** including education points, civic points, and completed courses
+- **View achievements** including education points, civic points, enrollments, course completion (with scores), and certificates
 - **Admin functions** for creating courses and proposals (requires capability objects)
 
 The frontend seamlessly integrates with the Sui blockchain using `@mysten/dapp-kit` and can optionally use a backend API for faster event queries.
@@ -43,8 +43,8 @@ The frontend seamlessly integrates with the Sui blockchain using `@mysten/dapp-k
 - 📚 **Course Browsing**: Search and filter courses with real-time updates
 - 🎓 **Course Enrollment**: One-click enrollment that updates your profile and earns education points
 - 🗳️ **Proposal Voting**: Vote on civic proposals with anti-duplicate protection
-- 📊 **Achievement Tracking**: View education points, civic points, completed courses, and voted proposals
-- 🔧 **Admin Panel**: Create courses and proposals (requires TeacherCap/AdminCap)
+- 📊 **Achievement Tracking**: View education points, civic points, enrolled courses, completed courses (with score), voted proposals (with choice), and certificates
+- 🔧 **Admin Panel**: Create courses/proposals, submit results, and issue certificates (requires capability objects)
 
 ### User Experience
 
@@ -312,8 +312,10 @@ educhain-frontend/
 **View Profile**:
 - Education points (earned from enrollments)
 - Civic points (earned from votes)
-- Completed courses list
-- Voted proposals list
+- Enrolled courses list (derived from `Enrolled` events)
+- Completed courses + score (derived from `ResultSubmitted` events)
+- Voted proposals + choice (derived from `VoteCast` events)
+- Certificates owned by the wallet (owned `Certificate` objects)
 - Profile object ID
 
 ### 3. Course Management
@@ -341,7 +343,7 @@ educhain-frontend/
 **Browse Proposals**:
 - Grid layout with proposal cards
 - Search by title
-- View proposal details (title, description, budget)
+- View proposal details (title, description)
 - See voting progress (Yes/No counts, progress bar)
 
 **Vote on Proposal**:
@@ -365,9 +367,21 @@ educhain-frontend/
 **Create Proposal** (requires AdminCap):
 - Enter proposal title
 - Enter description
-- Set budget amount
 - Click "Create proposal"
 - Proposal added to ProposalRegistry
+
+**Submit result / mark completed** (requires TeacherCap):
+- Select course from dropdown
+- Enter student address + score
+- Click "Submit result"
+- Completion is reflected in UI via `ResultSubmitted` events
+
+**Issue certificate** (requires IssuerCap):
+- Select course from dropdown
+- Enter student address
+- (Optional) metadata URI
+- Click "Issue certificate"
+- Certificate is an owned object; it appears in Profile → Certificates
 
 ### 6. Gas Management
 
@@ -410,6 +424,15 @@ The app automatically discovers:
 - **Capabilities**: Queries owned objects by type `TeacherCap`, `AdminCap`, `IssuerCap`
 - **Courses**: Reads from `CourseCatalog` shared object
 - **Proposals**: Reads from `ProposalRegistry` shared object
+- **Certificates**: Queries owned objects by type `Certificate`
+
+### Certificate metadata
+
+Certificates store an on-chain `metadata_uri` string (optional). For convenience during demos, the frontend also exposes a hosted metadata endpoint:
+
+- `GET /api/certificates/<certificateObjectId>`
+
+This returns a JSON metadata document generated from the on-chain `Certificate` fields.
 
 ### Transaction Building
 

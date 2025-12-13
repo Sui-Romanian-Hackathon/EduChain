@@ -11,7 +11,6 @@ export type Proposal = {
   objectId: string;
   title?: string;
   description?: string;
-  budget?: number;
   yesVotes?: number;
   noVotes?: number;
   createdAtMs?: number;
@@ -29,4 +28,12 @@ export type CapIds = {
   teacherCapId?: string;
   adminCapId?: string;
   issuerCapId?: string;
+};
+
+export type Certificate = {
+  objectId: string;
+  courseId: number;
+  score: number;
+  metadataUri?: string;
+  issuedAtMs?: number;
 };

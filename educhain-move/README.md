@@ -732,6 +732,12 @@ sui move build --lint
 sui move test
 ```
 
+### CI-grade tests (lint + warnings as errors)
+
+```bash
+sui move --lint --warnings-are-errors test
+```
+
 ### Test Coverage
 
 Tests are located in `tests/educhain_tests.move`:
@@ -741,6 +747,20 @@ Tests are located in `tests/educhain_tests.move`:
 - Proposal creation and voting tests
 - Error condition tests
 - Access control tests
+
+### How the tests work (Sui test_scenario)
+
+The suite uses Sui’s `sui::test_scenario` framework to simulate multiple transactions and multiple actors (admin/teacher/student/issuer):
+
+- `ts::begin(<address>)` starts a scenario as a specific sender
+- `ts::ctx(&mut scenario)` returns a `TxContext` for entry calls
+- `ts::next_tx(&mut scenario, <address>)` advances to the next “transaction” and can switch sender
+- `ts::take_from_sender<T>(&scenario)` / `ts::return_to_sender(&scenario, obj)` are used to pull owned objects from the sender and return them, allowing assertions on object creation/transfer
+
+This mirrors how the app behaves on-chain:
+- capabilities are created in `init_state` and transferred to the publisher
+- students create a `Profile`, enroll, teachers submit results, issuers mint certificates
+- proposals are created/voted/finalized with capability checks and anti-duplicate voting rules
 
 ### Writing Tests
 

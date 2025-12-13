@@ -6,6 +6,8 @@ import { notifications } from "@mantine/notifications"
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit"
 import { useCourses } from "@/lib/useCourses"
 import { useProfile } from "@/lib/useProfile"
+import { useEnrollments } from "@/lib/useEnrollments"
+import { useResults } from "@/lib/useResults"
 import { buildCreateProfileTx, buildEnrollTx } from "@/lib/sui"
 import { APP_CONFIG, suiChainId } from "@/lib/config"
 
@@ -14,6 +16,8 @@ export function CoursesPanel() {
 	const account = useCurrentAccount()
 	const { profile } = useProfile()
 	const { courses, loading, source } = useCourses(50)
+	const { enrollments } = useEnrollments(200)
+	const { completedCourseIds } = useResults(500)
 
 	const { mutate: signAndExecuteTransaction, isPending: txPending } = useSignAndExecuteTransaction()
 	const [filter, setFilter] = useState("")
@@ -72,7 +76,6 @@ export function CoursesPanel() {
 
 	const chainHint = `Using chain: sui:${APP_CONFIG.network}`
 	const canCreateProfile = Boolean(account) && Boolean(APP_CONFIG.packageId)
-	const isMock = source === "mock"
 
 	return (
 		<Stack gap="md">
@@ -124,7 +127,8 @@ export function CoursesPanel() {
 			) : (
 				<SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
 					{filtered.map((c) => {
-						const done = profile?.completedCourses?.includes(c.id) ?? false
+						const isEnrolled = enrollments.some((e) => e.courseId === c.id)
+						const done = completedCourseIds.has(c.id)
 						return (
 							<Card key={c.objectId} withBorder radius="lg" p="lg">
 								<Stack gap="xs">
@@ -147,17 +151,17 @@ export function CoursesPanel() {
 										</Text>
 									)}
 									<Group justify="space-between" mt="sm">
-										<Badge color={done ? "green" : "gray"} variant="light">
-											{done ? "Completed" : "Not completed"}
+										<Badge color={done ? "green" : isEnrolled ? "blue" : "gray"} variant="light">
+											{done ? "Completed" : isEnrolled ? "Enrolled" : "Not enrolled"}
 										</Badge>
 										<Button
 											size="sm"
-											variant={done ? "light" : "filled"}
-											disabled={isMock || !profile || done}
+											variant={done || isEnrolled ? "light" : "filled"}
+											disabled={!profile || done || isEnrolled}
 											loading={txPending}
 											onClick={() => onEnroll(c.id)}
 										>
-											{isMock ? "Mock" : done ? "Done" : "Enroll"}
+											{done ? "Done" : isEnrolled ? "Enrolled" : "Enroll"}
 										</Button>
 									</Group>
 								</Stack>
