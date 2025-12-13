@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: educhain
+    ports:
+      - "5432:5432"
+    volumes:
+      - educhain_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d educhain"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    command: ["sh", "-c", "npx prisma migrate deploy && node dist/api/server.js"]
+
+  indexer:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["sh", "-c", "npx prisma migrate deploy && node dist/indexer/indexer.js"]
+
+volumes:
+  educhain_pg:

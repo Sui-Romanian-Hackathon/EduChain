@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Stores the last indexed cursor so we can resume.
+model IndexerCursor {
+  id        Int      @id @default(1)
+  txDigest  String?
+  eventSeq  Int?
+  updatedAt DateTime @updatedAt
+}
+
+// Generic Sui event storage. Keep it general; add derived tables later.
+model SuiEvent {
+  id               BigInt   @id @default(autoincrement())
+  txDigest         String
+  eventSeq         Int
+  timestampMs      BigInt?
+  packageId        String?
+  transactionModule String?
+  sender           String?
+  eventType        String?
+  parsedJson       Json?
+  bcs              String?
+
+  createdAt        DateTime @default(now())
+
+  @@unique([txDigest, eventSeq])
+  @@index([eventType])
+  @@index([packageId])
+  @@index([transactionModule])
+  @@index([sender])
+}
