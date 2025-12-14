@@ -59,7 +59,7 @@ export async function buildVoteTx(
 				tx.object(args.profileId),
 				tx.pure.u64(args.proposalId),
 				tx.pure.u8(args.choice),
-				tx.pure.option("string", args.opinion.trim())
+				tx.pure.option("string", args.opinion!.trim())
 			]
 		})
 	} else {
