@@ -13,9 +13,11 @@ import {
 	Badge,
 	Progress,
 	TextInput,
+	Textarea,
 	ThemeIcon,
 	Divider,
-	Tooltip
+	Tooltip,
+	useMantineColorScheme
 } from "@mantine/core"
 import { notifications } from "@mantine/notifications"
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit"
@@ -35,10 +37,60 @@ export function ProposalsPanel() {
 	const { profile } = useProfile()
 	const { proposals, loading, source } = useProposals(50)
 	const { votedProposalIds, refetch: refetchVotes } = useVotes(500)
+	const { colorScheme } = useMantineColorScheme()
 
 	const { mutate: signAndExecuteTransaction, isPending: txPending } = useSignAndExecuteTransaction()
 	const [filter, setFilter] = useState("")
 	const [optimisticVoted, setOptimisticVoted] = useState<Set<number>>(new Set())
+	const [opinions, setOpinions] = useState<Map<number, string>>(new Map())
+	const [submittedOpinions, setSubmittedOpinions] = useState<Map<number, string>>(new Map())
+
+	// Load submitted opinions from localStorage on mount
+	useEffect(() => {
+		if (!account?.address) {
+			setSubmittedOpinions(new Map())
+			return
+		}
+
+		try {
+			const key = `educhain-opinions-${account.address}`
+			const stored = localStorage.getItem(key)
+			if (stored) {
+				const parsed = JSON.parse(stored) as Record<string, string>
+				const map = new Map<number, string>()
+				for (const [proposalId, opinion] of Object.entries(parsed)) {
+					map.set(Number(proposalId), opinion)
+				}
+				setSubmittedOpinions(map)
+			}
+		} catch (e) {
+			console.warn("Failed to load opinions from localStorage", e)
+		}
+	}, [account?.address])
+
+	// Save submitted opinions to localStorage
+	const saveOpinionToStorage = (proposalId: number, opinion: string) => {
+		if (!account?.address) return
+
+		try {
+			const key = `educhain-opinions-${account.address}`
+			setSubmittedOpinions((prev) => {
+				const next = new Map(prev)
+				next.set(proposalId, opinion)
+
+				// Save to localStorage
+				const obj: Record<string, string> = {}
+				for (const [pid, op] of next.entries()) {
+					obj[String(pid)] = op
+				}
+				localStorage.setItem(key, JSON.stringify(obj))
+
+				return next
+			})
+		} catch (e) {
+			console.warn("Failed to save opinion to localStorage", e)
+		}
+	}
 
 	useEffect(() => {
 		// Reset optimistic state when wallet changes
@@ -91,8 +143,9 @@ export function ProposalsPanel() {
 			notifications.show({ color: "yellow", title: "No Profile", message: "Create your Profile first." })
 			return
 		}
+		const opinion = opinions.get(proposalId)
 		try {
-			const tx = await buildVoteTx(client as any, { profileId: profile.objectId, proposalId, choice })
+			const tx = await buildVoteTx(client as any, { profileId: profile.objectId, proposalId, choice, opinion })
 			signAndExecuteTransaction(
 				{ transaction: tx as any, chain: suiChainId(APP_CONFIG.network) },
 				{
@@ -102,16 +155,48 @@ export function ProposalsPanel() {
 							next.add(proposalId)
 							return next
 						})
+						// Store submitted opinion before clearing input
+						if (opinion) {
+							// Persist to localStorage (this also updates state)
+							saveOpinionToStorage(proposalId, opinion)
+						}
+						// Clear opinion input after successful vote
+						setOpinions((prev) => {
+							const next = new Map(prev)
+							next.delete(proposalId)
+							return next
+						})
 						// Best-effort refresh VoteCast events so UI stays consistent after navigation.
 						refetchVotes()
 						notifications.show({ title: "Vote submitted", message: `Tx: ${res.digest}` })
 						void refreshAfterTx({ client: client as any, queryClient, digest: res.digest })
 					},
-					onError: (e) => notifications.show({ color: "red", title: "Transaction failed", message: e.message })
+					onError: (e: any) => {
+						const errorMsg = e.message || String(e)
+						if (errorMsg.includes("vote_with_opinion") || errorMsg.includes("No function was found")) {
+							notifications.show({
+								color: "red",
+								title: "Function not found",
+								message:
+									"The vote_with_opinion function is not available. Please redeploy the Move package with the updated contract, or vote without an opinion."
+							})
+						} else {
+							notifications.show({ color: "red", title: "Transaction failed", message: errorMsg })
+						}
+					}
 				}
 			)
 		} catch (e: any) {
-			notifications.show({ color: "red", title: "Error", message: e.message ?? "Unknown error" })
+			const errorMsg = e.message || String(e)
+			if (errorMsg.includes("vote_with_opinion") || errorMsg.includes("No function was found")) {
+				notifications.show({
+					color: "red",
+					title: "Function not found",
+					message: "The vote_with_opinion function is not available. Please redeploy the Move package with the updated contract."
+				})
+			} else {
+				notifications.show({ color: "red", title: "Error", message: errorMsg })
+			}
 		}
 	}
 
@@ -302,6 +387,46 @@ export function ProposalsPanel() {
 									</Group>
 
 									<Progress value={yesPct} mt="xs" />
+
+									{!voted && (
+										<Textarea
+											placeholder="Add your opinion (optional)..."
+											value={opinions.get(p.id) ?? ""}
+											onChange={(e) => {
+												const value = e.currentTarget.value
+												setOpinions((prev) => {
+													const next = new Map(prev)
+													if (value.trim()) {
+														next.set(p.id, value)
+													} else {
+														next.delete(p.id)
+													}
+													return next
+												})
+											}}
+											minRows={2}
+											maxRows={4}
+											disabled={voted || !account || !profile}
+											mt="sm"
+										/>
+									)}
+
+									{voted && submittedOpinions.get(p.id) && (
+										<Card
+											withBorder
+											radius="md"
+											p="sm"
+											mt="sm"
+											bg={colorScheme === "dark" ? "var(--mantine-color-dark-6)" : "var(--mantine-color-gray-0)"}
+										>
+											<Stack gap={4}>
+												<Text size="xs" fw={600} c="dimmed">
+													Your opinion:
+												</Text>
+												<Text size="sm">{submittedOpinions.get(p.id)}</Text>
+											</Stack>
+										</Card>
+									)}
 
 									<Group justify="space-between" mt="sm">
 										<Text size="xs" c="dimmed">

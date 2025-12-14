@@ -97,6 +97,7 @@ module educhain::educhain {
         next_proposal_id: u64,
         proposals: ObjectTable<u64, Proposal>,
         votes: Table<VoteKey, u8>, // 1 yes, 0 no
+        vote_opinions: Table<VoteKey, String>, // Optional opinions for votes
     }
 
     /// A certificate object (owned NFT-like credential).
@@ -206,6 +207,7 @@ module educhain::educhain {
             next_proposal_id: 1,
             proposals: object_table::new<u64, Proposal>(ctx),
             votes: table::new<VoteKey, u8>(ctx),
+            vote_opinions: table::new<VoteKey, String>(ctx),
         };
 
         // object::id expects a reference
@@ -433,6 +435,19 @@ module educhain::educhain {
         choice: u8,
         ctx: &TxContext
     ) {
+        vote_with_opinion(registry, profile, proposal_id, choice, option::none<String>(), ctx);
+    }
+
+    /// Citizen votes with optional opinion (anti-duplicate).
+    /// ctx is not mutated here, so it is &TxContext (not &mut).
+    entry fun vote_with_opinion(
+        registry: &mut ProposalRegistry,
+        profile: &mut Profile,
+        proposal_id: u64,
+        choice: u8,
+        opinion: Option<String>,
+        ctx: &TxContext
+    ) {
         let voter = tx_context::sender(ctx);
         assert!(profile.owner == voter, E_NOT_PROFILE_OWNER);
 
@@ -447,6 +462,12 @@ module educhain::educhain {
         assert!(!table::contains(&registry.votes, key), E_DUPLICATE_VOTE);
 
         table::add(&mut registry.votes, key, choice);
+
+        // Store opinion if provided
+        if (option::is_some(&opinion)) {
+            let opinion_val = option::extract(&mut opinion);
+            table::add(&mut registry.vote_opinions, key, opinion_val);
+        };
 
         if (choice == 1) {
             prop.yes = prop.yes + 1;

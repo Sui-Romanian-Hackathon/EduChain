@@ -1,6 +1,6 @@
-import { Transaction } from '@mysten/sui/transactions';
-import type { SuiClient } from '@mysten/sui/client';
-import { APP_CONFIG } from './config';
+import { Transaction } from "@mysten/sui/transactions"
+import type { SuiClient } from "@mysten/sui/client"
+import { APP_CONFIG } from "./config"
 
 /**
  * NOTE about shared objects:
@@ -10,194 +10,209 @@ import { APP_CONFIG } from './config';
  */
 
 export function moveTarget(module: string, fn: string) {
-  if (!APP_CONFIG.packageId) throw new Error('Missing NEXT_PUBLIC_SUI_PACKAGE_ID');
-  return `${APP_CONFIG.packageId}::${module}::${fn}`;
+	if (!APP_CONFIG.packageId) throw new Error("Missing NEXT_PUBLIC_SUI_PACKAGE_ID")
+	return `${APP_CONFIG.packageId}::${module}::${fn}`
 }
 
 export function structType(module: string, struct: string) {
-  if (!APP_CONFIG.packageId) throw new Error('Missing NEXT_PUBLIC_SUI_PACKAGE_ID');
-  return `${APP_CONFIG.packageId}::${module}::${struct}`;
+	if (!APP_CONFIG.packageId) throw new Error("Missing NEXT_PUBLIC_SUI_PACKAGE_ID")
+	return `${APP_CONFIG.packageId}::${module}::${struct}`
 }
 
 export async function buildCreateProfileTx(_client: SuiClient) {
-  const tx = new Transaction();
-  tx.moveCall({
-    target: moveTarget('educhain', 'create_profile'),
-    arguments: [],
-  });
-  return tx;
+	const tx = new Transaction()
+	tx.moveCall({
+		target: moveTarget("educhain", "create_profile"),
+		arguments: []
+	})
+	return tx
 }
 
 export async function buildEnrollTx(_client: SuiClient, args: { profileId: string; courseId: string | number }) {
-  if (!APP_CONFIG.courseCatalogId) throw new Error('Missing NEXT_PUBLIC_COURSE_CATALOG_ID');
+	if (!APP_CONFIG.courseCatalogId) throw new Error("Missing NEXT_PUBLIC_COURSE_CATALOG_ID")
 
-  const tx = new Transaction();
-  tx.moveCall({
-    target: moveTarget('educhain', 'enroll'),
-    arguments: [tx.object(APP_CONFIG.courseCatalogId), tx.object(args.profileId), tx.pure.u64(args.courseId)],
-  });
-  return tx;
+	const tx = new Transaction()
+	tx.moveCall({
+		target: moveTarget("educhain", "enroll"),
+		arguments: [tx.object(APP_CONFIG.courseCatalogId), tx.object(args.profileId), tx.pure.u64(args.courseId)]
+	})
+	return tx
 }
 
 export async function buildVoteTx(
-  _client: SuiClient,
-  args: { profileId: string; proposalId: string | number; choice: 0 | 1 },
+	_client: SuiClient,
+	args: { profileId: string; proposalId: string | number; choice: 0 | 1; opinion?: string; useOpinionFunction?: boolean }
 ) {
-  if (!APP_CONFIG.proposalRegistryId) throw new Error('Missing NEXT_PUBLIC_PROPOSAL_REGISTRY_ID');
+	if (!APP_CONFIG.proposalRegistryId) throw new Error("Missing NEXT_PUBLIC_PROPOSAL_REGISTRY_ID")
 
-  const tx = new Transaction();
-  tx.moveCall({
-    target: moveTarget('educhain', 'vote'),
-    arguments: [
-      tx.object(APP_CONFIG.proposalRegistryId),
-      tx.object(args.profileId),
-      tx.pure.u64(args.proposalId),
-      tx.pure.u8(args.choice),
-    ],
-  });
-  return tx;
+	const tx = new Transaction()
+
+	// Use vote_with_opinion if opinion is provided and useOpinionFunction is explicitly true, otherwise use vote
+	// Note: useOpinionFunction defaults to false to avoid errors if the function hasn't been deployed yet
+	const shouldUseOpinion = args.useOpinionFunction === true && args.opinion && args.opinion.trim().length > 0
+
+	if (shouldUseOpinion) {
+		tx.moveCall({
+			target: moveTarget("educhain", "vote_with_opinion"),
+			arguments: [
+				tx.object(APP_CONFIG.proposalRegistryId),
+				tx.object(args.profileId),
+				tx.pure.u64(args.proposalId),
+				tx.pure.u8(args.choice),
+				tx.pure.option("string", args.opinion.trim())
+			]
+		})
+	} else {
+		tx.moveCall({
+			target: moveTarget("educhain", "vote"),
+			arguments: [
+				tx.object(APP_CONFIG.proposalRegistryId),
+				tx.object(args.profileId),
+				tx.pure.u64(args.proposalId),
+				tx.pure.u8(args.choice)
+			]
+		})
+	}
+	return tx
 }
 
-export async function buildCreateCourseTx(
-  _client: SuiClient,
-  args: { teacherCapId: string; title: string; contentUri: string },
-) {
-  if (!APP_CONFIG.courseCatalogId) throw new Error('Missing NEXT_PUBLIC_COURSE_CATALOG_ID');
+export async function buildCreateCourseTx(_client: SuiClient, args: { teacherCapId: string; title: string; contentUri: string }) {
+	if (!APP_CONFIG.courseCatalogId) throw new Error("Missing NEXT_PUBLIC_COURSE_CATALOG_ID")
 
-  const tx = new Transaction();
-  tx.moveCall({
-    target: moveTarget('educhain', 'create_course'),
-    arguments: [
-      tx.object(args.teacherCapId),
-      tx.object(APP_CONFIG.courseCatalogId),
-      tx.pure.string(args.title),
-      tx.pure.string(args.contentUri),
-    ],
-  });
+	const tx = new Transaction()
+	tx.moveCall({
+		target: moveTarget("educhain", "create_course"),
+		arguments: [
+			tx.object(args.teacherCapId),
+			tx.object(APP_CONFIG.courseCatalogId),
+			tx.pure.string(args.title),
+			tx.pure.string(args.contentUri)
+		]
+	})
 
-  return tx;
+	return tx
 }
 
 export async function buildCreateProposalTx(
-  _client: SuiClient,
-  args: { adminCapId: string; title: string; description: string },
+	_client: SuiClient,
+	args: { adminCapId: string; title: string; description: string }
 ) {
-  if (!APP_CONFIG.proposalRegistryId) throw new Error('Missing NEXT_PUBLIC_PROPOSAL_REGISTRY_ID');
+	if (!APP_CONFIG.proposalRegistryId) throw new Error("Missing NEXT_PUBLIC_PROPOSAL_REGISTRY_ID")
 
-  const tx = new Transaction();
-  tx.moveCall({
-    target: moveTarget('educhain', 'create_proposal'),
-    arguments: [
-      tx.object(args.adminCapId),
-      tx.object(APP_CONFIG.proposalRegistryId),
-      tx.pure.string(args.title),
-      tx.pure.string(args.description),
-    ],
-  });
+	const tx = new Transaction()
+	tx.moveCall({
+		target: moveTarget("educhain", "create_proposal"),
+		arguments: [
+			tx.object(args.adminCapId),
+			tx.object(APP_CONFIG.proposalRegistryId),
+			tx.pure.string(args.title),
+			tx.pure.string(args.description)
+		]
+	})
 
-  return tx;
+	return tx
 }
 
 export async function buildIssueCertificateTx(
-  _client: SuiClient,
-  args: { issuerCapId: string; courseId: string | number; student: string; metadataUri: string },
+	_client: SuiClient,
+	args: { issuerCapId: string; courseId: string | number; student: string; metadataUri: string }
 ) {
-  if (!APP_CONFIG.courseCatalogId) throw new Error('Missing NEXT_PUBLIC_COURSE_CATALOG_ID');
+	if (!APP_CONFIG.courseCatalogId) throw new Error("Missing NEXT_PUBLIC_COURSE_CATALOG_ID")
 
-  const tx = new Transaction();
-  tx.moveCall({
-    target: moveTarget('educhain', 'issue_certificate'),
-    arguments: [
-      tx.object(args.issuerCapId),
-      tx.object(APP_CONFIG.courseCatalogId),
-      tx.pure.u64(args.courseId),
-      tx.pure.address(args.student),
-      tx.pure.string(args.metadataUri),
-    ],
-  });
-  return tx;
+	const tx = new Transaction()
+	tx.moveCall({
+		target: moveTarget("educhain", "issue_certificate"),
+		arguments: [
+			tx.object(args.issuerCapId),
+			tx.object(APP_CONFIG.courseCatalogId),
+			tx.pure.u64(args.courseId),
+			tx.pure.address(args.student),
+			tx.pure.string(args.metadataUri)
+		]
+	})
+	return tx
 }
 
 export async function buildSubmitResultAndIssueCertificateTx(
-  _client: SuiClient,
-  args: {
-    teacherCapId: string;
-    issuerCapId: string;
-    courseId: string | number;
-    student: string;
-    score: string | number;
-    metadataUri: string;
-  },
+	_client: SuiClient,
+	args: {
+		teacherCapId: string
+		issuerCapId: string
+		courseId: string | number
+		student: string
+		score: string | number
+		metadataUri: string
+	}
 ) {
-  if (!APP_CONFIG.courseCatalogId) throw new Error('Missing NEXT_PUBLIC_COURSE_CATALOG_ID');
+	if (!APP_CONFIG.courseCatalogId) throw new Error("Missing NEXT_PUBLIC_COURSE_CATALOG_ID")
 
-  const tx = new Transaction();
+	const tx = new Transaction()
 
-  // 1) Mark completed + record score
-  tx.moveCall({
-    target: moveTarget('educhain', 'submit_result'),
-    arguments: [
-      tx.object(args.teacherCapId),
-      tx.object(APP_CONFIG.courseCatalogId),
-      tx.pure.u64(args.courseId),
-      tx.pure.address(args.student),
-      tx.pure.bool(true),
-      tx.pure.u64(args.score),
-    ],
-  });
+	// 1) Mark completed + record score
+	tx.moveCall({
+		target: moveTarget("educhain", "submit_result"),
+		arguments: [
+			tx.object(args.teacherCapId),
+			tx.object(APP_CONFIG.courseCatalogId),
+			tx.pure.u64(args.courseId),
+			tx.pure.address(args.student),
+			tx.pure.bool(true),
+			tx.pure.u64(args.score)
+		]
+	})
 
-  // 2) Issue the certificate (same tx => sees the updated on-chain state)
-  tx.moveCall({
-    target: moveTarget('educhain', 'issue_certificate'),
-    arguments: [
-      tx.object(args.issuerCapId),
-      tx.object(APP_CONFIG.courseCatalogId),
-      tx.pure.u64(args.courseId),
-      tx.pure.address(args.student),
-      tx.pure.string(args.metadataUri),
-    ],
-  });
+	// 2) Issue the certificate (same tx => sees the updated on-chain state)
+	tx.moveCall({
+		target: moveTarget("educhain", "issue_certificate"),
+		arguments: [
+			tx.object(args.issuerCapId),
+			tx.object(APP_CONFIG.courseCatalogId),
+			tx.pure.u64(args.courseId),
+			tx.pure.address(args.student),
+			tx.pure.string(args.metadataUri)
+		]
+	})
 
-  return tx;
+	return tx
 }
 
 export async function buildSubmitResultTx(
-  _client: SuiClient,
-  args: {
-    teacherCapId: string;
-    courseId: string | number;
-    student: string;
-    completed: boolean;
-    score: string | number;
-  },
+	_client: SuiClient,
+	args: {
+		teacherCapId: string
+		courseId: string | number
+		student: string
+		completed: boolean
+		score: string | number
+	}
 ) {
-  if (!APP_CONFIG.courseCatalogId) throw new Error('Missing NEXT_PUBLIC_COURSE_CATALOG_ID');
+	if (!APP_CONFIG.courseCatalogId) throw new Error("Missing NEXT_PUBLIC_COURSE_CATALOG_ID")
 
-  const tx = new Transaction();
-  tx.moveCall({
-    target: moveTarget('educhain', 'submit_result'),
-    arguments: [
-      tx.object(args.teacherCapId),
-      tx.object(APP_CONFIG.courseCatalogId),
-      tx.pure.u64(args.courseId),
-      tx.pure.address(args.student),
-      tx.pure.bool(args.completed),
-      tx.pure.u64(args.score),
-    ],
-  });
-  return tx;
+	const tx = new Transaction()
+	tx.moveCall({
+		target: moveTarget("educhain", "submit_result"),
+		arguments: [
+			tx.object(args.teacherCapId),
+			tx.object(APP_CONFIG.courseCatalogId),
+			tx.pure.u64(args.courseId),
+			tx.pure.address(args.student),
+			tx.pure.bool(args.completed),
+			tx.pure.u64(args.score)
+		]
+	})
+	return tx
 }
 
 export function extractFields(obj: any): Record<string, any> | null {
-  const content = obj?.data?.content;
-  if (!content || typeof content !== 'object') return null;
-  const fields = (content as any).fields;
-  if (!fields || typeof fields !== 'object') return null;
-  return fields as Record<string, any>;
+	const content = obj?.data?.content
+	if (!content || typeof content !== "object") return null
+	const fields = (content as any).fields
+	if (!fields || typeof fields !== "object") return null
+	return fields as Record<string, any>
 }
 
 export function parseU64(value: any): number | null {
-  if (value == null) return null;
-  const n = typeof value === 'string' ? Number(value) : typeof value === 'number' ? value : NaN;
-  return Number.isFinite(n) ? n : null;
+	if (value == null) return null
+	const n = typeof value === "string" ? Number(value) : typeof value === "number" ? value : NaN
+	return Number.isFinite(n) ? n : null
 }
