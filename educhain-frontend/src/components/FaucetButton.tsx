@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Button } from "@mantine/core"
-import { IconCoins } from "@tabler/icons-react"
+import { IconDroplet } from "@/components/icons/feather"
 import { useCurrentAccount } from "@mysten/dapp-kit"
 import { APP_CONFIG } from "@/lib/config"
 import { notifications } from "@mantine/notifications"
@@ -97,7 +97,7 @@ export function FaucetButton() {
 			<Button
 				size="xs"
 				variant="light"
-				leftSection={<IconCoins size={16} />}
+				leftSection={<IconDroplet size={16} />}
 				onClick={handleFaucet}
 				loading={loading}
 				disabled={loading}
@@ -108,7 +108,7 @@ export function FaucetButton() {
 			<Button
 				size="xs"
 				variant="light"
-				leftSection={<IconCoins size={14} />}
+				leftSection={<IconDroplet size={14} />}
 				onClick={handleFaucet}
 				loading={loading}
 				disabled={loading}

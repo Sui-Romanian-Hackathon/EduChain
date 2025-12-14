@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Group, Text, Badge, ActionIcon, Menu, Box } from "@mantine/core"
-import { IconChevronDown, IconCopy, IconLogout } from "@tabler/icons-react"
+import { Group, Text, Badge, Menu, Box } from "@mantine/core"
+import { IconChevronDown, IconCopy, IconLogOut } from "./icons/feather"
 import { ConnectButton, useCurrentAccount, useDisconnectWallet, useSuiClientContext } from "@mysten/dapp-kit"
 import { APP_CONFIG, shortAddress } from "@/lib/config"
 import { notifications } from "@mantine/notifications"
@@ -68,7 +68,7 @@ export function HeaderBar() {
 								<Menu.Item leftSection={<IconCopy size={16} />} onClick={onCopy}>
 									Copy address
 								</Menu.Item>
-								<Menu.Item leftSection={<IconLogout size={16} />} color="red" onClick={() => disconnect()}>
+								<Menu.Item leftSection={<IconLogOut size={16} />} color="red" onClick={() => disconnect()}>
 									Disconnect
 								</Menu.Item>
 							</Menu.Dropdown>

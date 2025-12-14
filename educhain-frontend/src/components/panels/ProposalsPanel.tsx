@@ -1,17 +1,35 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Card, Text, Title, SimpleGrid, Button, Group, Stack, Skeleton, Badge, Progress, TextInput } from '@mantine/core';
+import {
+  Card,
+  Text,
+  Title,
+  SimpleGrid,
+  Button,
+  Group,
+  Stack,
+  Skeleton,
+  Badge,
+  Progress,
+  TextInput,
+  ThemeIcon,
+  Divider,
+} from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
+import { useQueryClient } from '@tanstack/react-query';
 import { useProposals } from '@/lib/useProposals';
 import { useProfile } from '@/lib/useProfile';
 import { useVotes } from '@/lib/useVotes';
 import { APP_CONFIG, suiChainId } from '@/lib/config';
 import { buildCreateProfileTx, buildVoteTx } from '@/lib/sui';
+import { IconClipboard, IconPlusCircle, IconSearch, IconThumbsDown, IconThumbsUp } from '@/components/icons/feather';
+import { refreshAfterTx } from '@/lib/refreshAfterTx';
 
 export function ProposalsPanel() {
   const client = useSuiClient();
+  const queryClient = useQueryClient();
   const account = useCurrentAccount();
   const { profile } = useProfile();
   const { proposals, loading, source } = useProposals(50);
@@ -32,13 +50,19 @@ export function ProposalsPanel() {
     return proposals.filter((p) => (p.title ?? '').toLowerCase().includes(q));
   }, [proposals, filter]);
 
+  const totalProposals = proposals.length;
+  const votedCount = votedProposalIds.size;
+
   const onCreateProfile = async () => {
     try {
       const tx = await buildCreateProfileTx(client as any);
       signAndExecuteTransaction(
         { transaction: tx as any, chain: suiChainId(APP_CONFIG.network) },
         {
-          onSuccess: (res) => notifications.show({ title: 'Profile created', message: `Tx: ${res.digest}` }),
+          onSuccess: (res) => {
+            notifications.show({ title: 'Profile created', message: `Tx: ${res.digest}` });
+            void refreshAfterTx({ client: client as any, queryClient, digest: res.digest });
+          },
           onError: (e) => notifications.show({ color: 'red', title: 'Transaction failed', message: e.message }),
         },
       );
@@ -66,6 +90,7 @@ export function ProposalsPanel() {
             // Best-effort refresh VoteCast events so UI stays consistent after navigation.
             refetchVotes();
             notifications.show({ title: 'Vote submitted', message: `Tx: ${res.digest}` });
+            void refreshAfterTx({ client: client as any, queryClient, digest: res.digest });
           },
           onError: (e) => notifications.show({ color: 'red', title: 'Transaction failed', message: e.message }),
         },
@@ -79,18 +104,93 @@ export function ProposalsPanel() {
     <Stack gap="md">
       <Stack gap="md">
         <Stack gap={0}>
-          <Title order={2}>Proposals</Title>
+          <Group gap="xs" align="center">
+            <IconClipboard size={20} />
+            <Title order={2}>Proposals</Title>
+          </Group>
           <Text size="sm" c="dimmed">
             Vote on on-chain proposals (writes to shared registry + your owned Profile).
           </Text>
         </Stack>
 
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
+          <Card withBorder radius="lg" p="md">
+            <Group justify="space-between">
+              <Stack gap={2}>
+                <Text c="dimmed" size="sm">
+                  Proposals
+                </Text>
+                <Title order={3}>{totalProposals}</Title>
+              </Stack>
+              <ThemeIcon variant="light" radius="xl" size={34}>
+                <IconClipboard size={18} />
+              </ThemeIcon>
+            </Group>
+          </Card>
+          <Card withBorder radius="lg" p="md">
+            <Group justify="space-between">
+              <Stack gap={2}>
+                <Text c="dimmed" size="sm">
+                  Votes cast
+                </Text>
+                <Title order={3}>{votedCount}</Title>
+              </Stack>
+              <ThemeIcon variant="light" radius="xl" size={34}>
+                <IconThumbsUp size={18} />
+              </ThemeIcon>
+            </Group>
+          </Card>
+          <Card withBorder radius="lg" p="md">
+            <Group justify="space-between">
+              <Stack gap={2}>
+                <Text c="dimmed" size="sm">
+                  Participation
+                </Text>
+                <Badge variant="light" color={totalProposals ? 'blue' : 'gray'}>
+                  {totalProposals ? `${Math.round((votedCount / Math.max(1, totalProposals)) * 100)}%` : '—'}
+                </Badge>
+              </Stack>
+              <ThemeIcon variant="light" radius="xl" size={34}>
+                <IconThumbsUp size={18} />
+              </ThemeIcon>
+            </Group>
+          </Card>
+          <Card withBorder radius="lg" p="md">
+            <Group justify="space-between">
+              <Stack gap={2}>
+                <Text c="dimmed" size="sm">
+                  Status
+                </Text>
+                <Badge variant="light" color={profile ? 'green' : 'yellow'}>
+                  {profile ? 'Ready to vote' : 'Create Profile to vote'}
+                </Badge>
+              </Stack>
+              <ThemeIcon variant="light" radius="xl" size={34}>
+                <IconPlusCircle size={18} />
+              </ThemeIcon>
+            </Group>
+          </Card>
+        </SimpleGrid>
+
         {!profile && (
           <Group>
-            <Button onClick={onCreateProfile} loading={txPending} disabled={!account} visibleFrom="sm">
+            <Button
+              onClick={onCreateProfile}
+              loading={txPending}
+              disabled={!account}
+              visibleFrom="sm"
+              leftSection={<IconPlusCircle size={16} />}
+            >
               Create Profile
             </Button>
-            <Button onClick={onCreateProfile} loading={txPending} disabled={!account} fullWidth hiddenFrom="sm">
+            <Button
+              onClick={onCreateProfile}
+              loading={txPending}
+              disabled={!account}
+              fullWidth
+              hiddenFrom="sm"
+              leftSection={<IconPlusCircle size={16} />}
+            >
               Create Profile
             </Button>
           </Group>
@@ -101,7 +201,24 @@ export function ProposalsPanel() {
         placeholder="Search proposals…"
         value={filter}
         onChange={(e) => setFilter(e.currentTarget.value)}
+        leftSection={<IconSearch size={16} />}
       />
+
+      {!loading && totalProposals === 0 ? (
+        <Card withBorder radius="lg" p="lg">
+          <Group gap="xs" wrap="nowrap">
+            <ThemeIcon variant="light" radius="xl" size={36}>
+              <IconClipboard size={18} />
+            </ThemeIcon>
+            <Stack gap={0}>
+              <Text fw={700}>No proposals yet</Text>
+              <Text size="sm" c="dimmed">
+                Once an admin creates proposals (Admin → Create proposal), they’ll show up here.
+              </Text>
+            </Stack>
+          </Group>
+        </Card>
+      ) : null}
 
       {loading ? (
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
@@ -114,6 +231,25 @@ export function ProposalsPanel() {
             </Card>
           ))}
         </SimpleGrid>
+      ) : filtered.length === 0 ? (
+        <Card withBorder radius="lg" p="lg">
+          <Group justify="space-between" align="flex-start" wrap="nowrap">
+            <Group gap="xs" wrap="nowrap">
+              <ThemeIcon variant="light" radius="xl" size={36}>
+                <IconSearch size={18} />
+              </ThemeIcon>
+              <Stack gap={0}>
+                <Text fw={700}>No matches</Text>
+                <Text size="sm" c="dimmed">
+                  No proposals match “{filter.trim()}”. Try a different search.
+                </Text>
+              </Stack>
+            </Group>
+            <Button variant="light" size="xs" onClick={() => setFilter('')} style={{ flexShrink: 0 }}>
+              Clear
+            </Button>
+          </Group>
+        </Card>
       ) : (
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
           {filtered.map((p) => {
@@ -127,7 +263,12 @@ export function ProposalsPanel() {
               <Card key={p.objectId} withBorder radius="lg" p="lg">
                 <Stack gap="xs">
                   <Group justify="space-between" align="flex-start">
-                    <Title order={4}>{p.title ?? `Proposal #${p.id}`}</Title>
+                    <Group gap="xs" align="center" style={{ minWidth: 0 }}>
+                      <IconClipboard size={16} />
+                      <Title order={4} style={{ minWidth: 0 }}>
+                        {p.title ?? `Proposal #${p.id}`}
+                      </Title>
+                    </Group>
                     <Badge variant="light">#{p.id}</Badge>
                   </Group>
 
@@ -136,6 +277,8 @@ export function ProposalsPanel() {
                       {p.description}
                     </Text>
                   )}
+
+                  <Divider />
 
                   <Group justify="space-between" mt="xs">
                     <Text size="sm" c="dimmed">
@@ -159,6 +302,7 @@ export function ProposalsPanel() {
                         disabled={!profile || voted}
                         loading={txPending}
                         onClick={() => onVote(p.id, 0)}
+                        leftSection={<IconThumbsDown size={14} />}
                       >
                         No
                       </Button>
@@ -167,6 +311,7 @@ export function ProposalsPanel() {
                         disabled={!profile || voted}
                         loading={txPending}
                         onClick={() => onVote(p.id, 1)}
+                        leftSection={<IconThumbsUp size={14} />}
                       >
                         Yes
                       </Button>

@@ -4,3 +4,53 @@ html, body {
 body {
   margin: 0;
 }
+
+/* Animate gradient anchor points (custom properties) */
+@property --blob1x { syntax: "<percentage>"; inherits: true; initial-value: 10%; }
+@property --blob1y { syntax: "<percentage>"; inherits: true; initial-value: 0%; }
+@property --blob2x { syntax: "<percentage>"; inherits: true; initial-value: 90%; }
+@property --blob2y { syntax: "<percentage>"; inherits: true; initial-value: 10%; }
+@property --blob3x { syntax: "<percentage>"; inherits: true; initial-value: 40%; }
+@property --blob3y { syntax: "<percentage>"; inherits: true; initial-value: 100%; }
+
+html, body {
+  --blob1x: 10%;
+  --blob1y: 0%;
+  --blob2x: 90%;
+  --blob2y: 10%;
+  --blob3x: 40%;
+  --blob3y: 100%;
+}
+
+body {
+  transition:
+    --blob1x 2200ms ease,
+    --blob1y 2200ms ease,
+    --blob2x 2400ms ease,
+    --blob2y 2400ms ease,
+    --blob3x 2600ms ease,
+    --blob3y 2600ms ease;
+}
+
+/* Friendly, subtle backgrounds per theme */
+html[data-mantine-color-scheme="light"] body {
+  background:
+    radial-gradient(900px 500px at var(--blob1x) var(--blob1y), rgba(99, 102, 241, 0.12), transparent 60%),
+    radial-gradient(700px 450px at var(--blob2x) var(--blob2y), rgba(34, 197, 94, 0.10), transparent 55%),
+    radial-gradient(800px 500px at var(--blob3x) var(--blob3y), rgba(236, 72, 153, 0.08), transparent 55%),
+    var(--mantine-color-body);
+}
+
+html[data-mantine-color-scheme="dark"] body {
+  background:
+    radial-gradient(900px 500px at var(--blob1x) var(--blob1y), rgba(99, 102, 241, 0.20), transparent 60%),
+    radial-gradient(700px 450px at var(--blob2x) var(--blob2y), rgba(34, 197, 94, 0.12), transparent 55%),
+    radial-gradient(800px 500px at var(--blob3x) var(--blob3y), rgba(236, 72, 153, 0.10), transparent 55%),
+    var(--mantine-color-body);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body {
+    transition: none;
+  }
+}

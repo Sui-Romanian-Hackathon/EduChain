@@ -1,18 +1,36 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Card, Text, Title, SimpleGrid, Button, Group, Stack, Skeleton, Badge, TextInput, Tooltip } from "@mantine/core"
+import {
+	Card,
+	Text,
+	Title,
+	SimpleGrid,
+	Button,
+	Group,
+	Stack,
+	Skeleton,
+	Badge,
+	TextInput,
+	Tooltip,
+	ThemeIcon,
+	Divider
+} from "@mantine/core"
 import { notifications } from "@mantine/notifications"
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit"
+import { useQueryClient } from "@tanstack/react-query"
 import { useCourses } from "@/lib/useCourses"
 import { useProfile } from "@/lib/useProfile"
 import { useEnrollments } from "@/lib/useEnrollments"
 import { useResults } from "@/lib/useResults"
 import { buildCreateProfileTx, buildEnrollTx } from "@/lib/sui"
 import { APP_CONFIG, suiChainId } from "@/lib/config"
+import { IconArrowRight, IconBookOpen, IconCheckCircle, IconPlusCircle, IconSearch } from "@/components/icons/feather"
+import { refreshAfterTx } from "@/lib/refreshAfterTx"
 
 export function CoursesPanel() {
 	const client = useSuiClient()
+	const queryClient = useQueryClient()
 	const account = useCurrentAccount()
 	const { profile } = useProfile()
 	const { courses, loading, source } = useCourses(50)
@@ -44,6 +62,7 @@ export function CoursesPanel() {
 				{
 					onSuccess: (res) => {
 						notifications.show({ title: "Profile created", message: `Tx: ${res.digest}` })
+						void refreshAfterTx({ client: client as any, queryClient, digest: res.digest })
 					},
 					onError: (e) => notifications.show({ color: "red", title: "Transaction failed", message: e.message })
 				}
@@ -65,6 +84,7 @@ export function CoursesPanel() {
 				{
 					onSuccess: (res) => {
 						notifications.show({ title: "Enrolled", message: `Tx: ${res.digest}` })
+						void refreshAfterTx({ client: client as any, queryClient, digest: res.digest })
 					},
 					onError: (e) => notifications.show({ color: "red", title: "Transaction failed", message: e.message })
 				}
@@ -76,16 +96,79 @@ export function CoursesPanel() {
 
 	const chainHint = `Using chain: sui:${APP_CONFIG.network}`
 	const canCreateProfile = Boolean(account) && Boolean(APP_CONFIG.packageId)
+	const totalCourses = courses.length
+	const enrolledCount = enrollments.length
+	const completedCount = completedCourseIds.size
 
 	return (
 		<Stack gap="md">
 			<Stack gap="md">
 				<Stack gap={0}>
-					<Title order={2}>Courses</Title>
+					<Group gap="xs" align="center">
+						<IconBookOpen size={20} />
+						<Title order={2}>Courses</Title>
+					</Group>
 					<Text size="sm" c="dimmed">
 						Browse courses and enroll (writes to your owned Profile).
 					</Text>
 				</Stack>
+
+				<SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
+					<Card withBorder radius="lg" p="md">
+						<Group justify="space-between">
+							<Stack gap={2}>
+								<Text c="dimmed" size="sm">
+									Courses
+								</Text>
+								<Title order={3}>{totalCourses}</Title>
+							</Stack>
+							<ThemeIcon variant="light" radius="xl" size={34}>
+								<IconBookOpen size={18} />
+							</ThemeIcon>
+						</Group>
+					</Card>
+					<Card withBorder radius="lg" p="md">
+						<Group justify="space-between">
+							<Stack gap={2}>
+								<Text c="dimmed" size="sm">
+									Enrolled
+								</Text>
+								<Title order={3}>{enrolledCount}</Title>
+							</Stack>
+							<ThemeIcon variant="light" radius="xl" size={34}>
+								<IconArrowRight size={18} />
+							</ThemeIcon>
+						</Group>
+					</Card>
+					<Card withBorder radius="lg" p="md">
+						<Group justify="space-between">
+							<Stack gap={2}>
+								<Text c="dimmed" size="sm">
+									Completed
+								</Text>
+								<Title order={3}>{completedCount}</Title>
+							</Stack>
+							<ThemeIcon variant="light" radius="xl" size={34}>
+								<IconCheckCircle size={18} />
+							</ThemeIcon>
+						</Group>
+					</Card>
+					<Card withBorder radius="lg" p="md">
+						<Group justify="space-between">
+							<Stack gap={2}>
+								<Text c="dimmed" size="sm">
+									Status
+								</Text>
+								<Badge variant="light" color={profile ? "green" : "yellow"}>
+									{profile ? "Profile ready" : "Create Profile to enroll"}
+								</Badge>
+							</Stack>
+							<ThemeIcon variant="light" radius="xl" size={34}>
+								<IconPlusCircle size={18} />
+							</ThemeIcon>
+						</Group>
+					</Card>
+				</SimpleGrid>
 
 				{!profile && (
 					<Group>
@@ -94,7 +177,13 @@ export function CoursesPanel() {
 							disabled={canCreateProfile}
 							withArrow
 						>
-							<Button onClick={onCreateProfile} loading={txPending} disabled={!canCreateProfile} visibleFrom="sm">
+							<Button
+								onClick={onCreateProfile}
+								loading={txPending}
+								disabled={!canCreateProfile}
+								visibleFrom="sm"
+								leftSection={<IconPlusCircle size={16} />}
+							>
 								Create Profile
 							</Button>
 						</Tooltip>
@@ -103,7 +192,14 @@ export function CoursesPanel() {
 							disabled={canCreateProfile}
 							withArrow
 						>
-							<Button onClick={onCreateProfile} loading={txPending} disabled={!canCreateProfile} fullWidth hiddenFrom="sm">
+							<Button
+								onClick={onCreateProfile}
+								loading={txPending}
+								disabled={!canCreateProfile}
+								fullWidth
+								hiddenFrom="sm"
+								leftSection={<IconPlusCircle size={16} />}
+							>
 								Create Profile
 							</Button>
 						</Tooltip>
@@ -111,7 +207,36 @@ export function CoursesPanel() {
 				)}
 			</Stack>
 
-			<TextInput placeholder="Search courses…" value={filter} onChange={(e) => setFilter(e.currentTarget.value)} />
+			<TextInput
+				placeholder="Search courses…"
+				value={filter}
+				onChange={(e) => setFilter(e.currentTarget.value)}
+				leftSection={<IconSearch size={16} />}
+			/>
+
+			{!loading && totalCourses === 0 ? (
+				<Card withBorder radius="lg" p="lg">
+					<Group justify="space-between" align="flex-start" wrap="nowrap">
+						<Stack gap={6}>
+							<Group gap="xs">
+								<ThemeIcon variant="light" radius="xl" size={36}>
+									<IconBookOpen size={18} />
+								</ThemeIcon>
+								<Stack gap={0}>
+									<Text fw={700}>No courses yet</Text>
+									<Text size="sm" c="dimmed">
+										Once a teacher publishes courses (Admin → Create course), they’ll appear here.
+									</Text>
+								</Stack>
+							</Group>
+							<Divider />
+							<Text size="sm" c="dimmed">
+								Tip: if you just created a course, it may take a moment for events to index—try the Refresh button in Profile.
+							</Text>
+						</Stack>
+					</Group>
+				</Card>
+			) : null}
 
 			{loading ? (
 				<SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
@@ -124,7 +249,7 @@ export function CoursesPanel() {
 						</Card>
 					))}
 				</SimpleGrid>
-			) : (
+			) : filtered.length ? (
 				<SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
 					{filtered.map((c) => {
 						const isEnrolled = enrollments.some((e) => e.courseId === c.id)
@@ -133,7 +258,12 @@ export function CoursesPanel() {
 							<Card key={c.objectId} withBorder radius="lg" p="lg">
 								<Stack gap="xs">
 									<Group justify="space-between" align="flex-start">
-										<Title order={4}>{c.title ?? `Course #${c.id}`}</Title>
+										<Group gap="xs" align="center" style={{ minWidth: 0 }}>
+											<IconBookOpen size={16} />
+											<Title order={4} style={{ minWidth: 0 }}>
+												{c.title ?? `Course #${c.id}`}
+											</Title>
+										</Group>
 										<Badge variant="light">#{c.id}</Badge>
 									</Group>
 									{c.contentUri && (
@@ -160,6 +290,9 @@ export function CoursesPanel() {
 											disabled={!profile || done || isEnrolled}
 											loading={txPending}
 											onClick={() => onEnroll(c.id)}
+											leftSection={
+												done || isEnrolled ? <IconCheckCircle size={16} /> : <IconArrowRight size={16} />
+											}
 										>
 											{done ? "Done" : isEnrolled ? "Enrolled" : "Enroll"}
 										</Button>
@@ -169,7 +302,26 @@ export function CoursesPanel() {
 						)
 					})}
 				</SimpleGrid>
-			)}
+			) : totalCourses > 0 ? (
+				<Card withBorder radius="lg" p="lg">
+					<Group justify="space-between" align="flex-start" wrap="nowrap">
+						<Group gap="xs" wrap="nowrap">
+							<ThemeIcon variant="light" radius="xl" size={36}>
+								<IconSearch size={18} />
+							</ThemeIcon>
+							<Stack gap={0}>
+								<Text fw={700}>No matches</Text>
+								<Text size="sm" c="dimmed">
+									No courses match “{filter.trim()}”. Try a different search.
+								</Text>
+							</Stack>
+						</Group>
+						<Button variant="light" size="xs" onClick={() => setFilter("")} style={{ flexShrink: 0 }}>
+							Clear
+						</Button>
+					</Group>
+				</Card>
+			) : null}
 
 			<Text size="xs" c="dimmed">
 				{chainHint} (data source: {source})

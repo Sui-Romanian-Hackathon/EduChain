@@ -14,17 +14,25 @@ import {
   Title,
   Code,
   Select,
+  SimpleGrid,
+  ThemeIcon,
+  Badge,
+  Divider,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient, useSuiClientQuery } from '@mysten/dapp-kit';
+import { useQueryClient } from '@tanstack/react-query';
 import { APP_CONFIG, suiChainId } from '@/lib/config';
-import { buildCreateCourseTx, buildCreateProposalTx, buildIssueCertificateTx, buildSubmitResultTx, structType } from '@/lib/sui';
+import { buildCreateCourseTx, buildCreateProposalTx, buildSubmitResultAndIssueCertificateTx, structType } from '@/lib/sui';
 import { useCaps } from '@/lib/useCaps';
 import { useCourses } from '@/lib/useCourses';
+import { IconAward, IconBookOpen, IconCheckCircle, IconClipboard, IconPlusCircle, IconSettings, IconUser } from '@/components/icons/feather';
+import { refreshAfterTx } from '@/lib/refreshAfterTx';
 
 export function AdminPanel() {
   const client = useSuiClient();
+  const queryClient = useQueryClient();
   const account = useCurrentAccount();
   const { caps } = useCaps();
   const { courses } = useCourses(200);
@@ -64,13 +72,14 @@ export function AdminPanel() {
   const [proposalTitle, setProposalTitle] = useState('');
   const [proposalDesc, setProposalDesc] = useState('');
 
-  const [resultCourseId, setResultCourseId] = useState<string>('');
-  const [resultStudent, setResultStudent] = useState('');
-  const [resultScore, setResultScore] = useState<number>(100);
+  const [completeCourseId, setCompleteCourseId] = useState<string>('');
+  const [completeStudent, setCompleteStudent] = useState('');
+  const [completeScore, setCompleteScore] = useState<number>(100);
+  const [completeMetadataUri, setCompleteMetadataUri] = useState('');
 
-  const [certCourseId, setCertCourseId] = useState<string>('');
-  const [certStudent, setCertStudent] = useState('');
-  const [certMetadataUri, setCertMetadataUri] = useState('');
+  const hasTeacher = Boolean(caps.teacherCapId);
+  const hasAdmin = Boolean(caps.adminCapId);
+  const hasIssuer = Boolean(caps.issuerCapId);
 
   const courseOptions = useMemo(
     () =>
@@ -83,11 +92,8 @@ export function AdminPanel() {
 
   // Auto-select first course once loaded (only if nothing selected yet)
   useEffect(() => {
-    if (!resultCourseId && courseOptions.length) setResultCourseId(courseOptions[0].value);
-  }, [courseOptions, resultCourseId]);
-  useEffect(() => {
-    if (!certCourseId && courseOptions.length) setCertCourseId(courseOptions[0].value);
-  }, [courseOptions, certCourseId]);
+    if (!completeCourseId && courseOptions.length) setCompleteCourseId(courseOptions[0].value);
+  }, [courseOptions, completeCourseId]);
 
   const createCourse = async () => {
     if (!APP_CONFIG.packageId || !APP_CONFIG.courseCatalogId) {
@@ -111,7 +117,10 @@ export function AdminPanel() {
       signAndExecuteTransaction(
         { transaction: tx as any, chain: suiChainId(APP_CONFIG.network) },
         {
-          onSuccess: (res) => notifications.show({ title: 'Course created', message: `Tx: ${res.digest}` }),
+          onSuccess: (res) => {
+            notifications.show({ title: 'Course created', message: `Tx: ${res.digest}` });
+            void refreshAfterTx({ client: client as any, queryClient, digest: res.digest });
+          },
           onError: (e) => notifications.show({ color: 'red', title: 'Transaction failed', message: e.message }),
         },
       );
@@ -143,7 +152,10 @@ export function AdminPanel() {
       signAndExecuteTransaction(
         { transaction: tx as any, chain: suiChainId(APP_CONFIG.network) },
         {
-          onSuccess: (res) => notifications.show({ title: 'Proposal created', message: `Tx: ${res.digest}` }),
+          onSuccess: (res) => {
+            notifications.show({ title: 'Proposal created', message: `Tx: ${res.digest}` });
+            void refreshAfterTx({ client: client as any, queryClient, digest: res.digest });
+          },
           onError: (e) => notifications.show({ color: 'red', title: 'Transaction failed', message: e.message }),
         },
       );
@@ -152,7 +164,7 @@ export function AdminPanel() {
     }
   };
 
-  const submitResult = async () => {
+  const completeAndIssue = async () => {
     if (!APP_CONFIG.packageId || !APP_CONFIG.courseCatalogId) {
       notifications.show({
         color: 'red',
@@ -165,72 +177,37 @@ export function AdminPanel() {
       notifications.show({ color: 'yellow', title: 'Missing TeacherCap', message: 'This wallet has no TeacherCap.' });
       return;
     }
-
-    const student = resultStudent.trim();
-    if (!student || !student.startsWith('0x')) {
-      notifications.show({ color: 'yellow', title: 'Invalid student address', message: 'Enter a valid Sui address.' });
-      return;
-    }
-    if (!resultCourseId) {
-      notifications.show({ color: 'yellow', title: 'Select a course', message: 'Pick a course from the dropdown.' });
-      return;
-    }
-
-    try {
-      const tx = await buildSubmitResultTx(client as any, {
-        teacherCapId: caps.teacherCapId,
-        courseId: resultCourseId,
-        student,
-        completed: true,
-        score: resultScore ?? 0,
-      });
-      signAndExecuteTransaction(
-        { transaction: tx as any, chain: suiChainId(APP_CONFIG.network) },
-        {
-          onSuccess: (res) => notifications.show({ title: 'Result submitted', message: `Tx: ${res.digest}` }),
-          onError: (e) => notifications.show({ color: 'red', title: 'Transaction failed', message: e.message }),
-        },
-      );
-    } catch (e: any) {
-      notifications.show({ color: 'red', title: 'Error', message: e.message ?? 'Unknown error' });
-    }
-  };
-
-  const issueCertificate = async () => {
-    if (!APP_CONFIG.packageId || !APP_CONFIG.courseCatalogId) {
-      notifications.show({
-        color: 'red',
-        title: 'Missing configuration',
-        message: 'Set NEXT_PUBLIC_SUI_PACKAGE_ID and NEXT_PUBLIC_COURSE_CATALOG_ID in educhain-frontend/.env.local and restart.',
-      });
-      return;
-    }
     if (!caps.issuerCapId) {
       notifications.show({ color: 'yellow', title: 'Missing IssuerCap', message: 'This wallet has no IssuerCap.' });
       return;
     }
 
-    const student = certStudent.trim();
+    const student = completeStudent.trim();
     if (!student || !student.startsWith('0x')) {
       notifications.show({ color: 'yellow', title: 'Invalid student address', message: 'Enter a valid Sui address.' });
       return;
     }
-    if (!certCourseId) {
+    if (!completeCourseId) {
       notifications.show({ color: 'yellow', title: 'Select a course', message: 'Pick a course from the dropdown.' });
       return;
     }
 
     try {
-      const tx = await buildIssueCertificateTx(client as any, {
+      const tx = await buildSubmitResultAndIssueCertificateTx(client as any, {
+        teacherCapId: caps.teacherCapId,
         issuerCapId: caps.issuerCapId,
-        courseId: certCourseId,
+        courseId: completeCourseId,
         student,
-        metadataUri: certMetadataUri || '',
+        score: completeScore ?? 0,
+        metadataUri: completeMetadataUri || '',
       });
       signAndExecuteTransaction(
         { transaction: tx as any, chain: suiChainId(APP_CONFIG.network) },
         {
-          onSuccess: (res) => notifications.show({ title: 'Certificate issued', message: `Tx: ${res.digest}` }),
+          onSuccess: (res) => {
+            notifications.show({ title: 'Completed + certificate issued', message: `Tx: ${res.digest}` });
+            void refreshAfterTx({ client: client as any, queryClient, digest: res.digest });
+          },
           onError: (e) => notifications.show({ color: 'red', title: 'Transaction failed', message: e.message }),
         },
       );
@@ -243,15 +220,96 @@ export function AdminPanel() {
     <Stack gap="md">
       <Group justify="space-between" align="flex-end">
         <Stack gap={0}>
-          <Title order={2}>Admin</Title>
+          <Group gap="xs" align="center">
+            <IconSettings size={20} />
+            <Title order={2}>Admin</Title>
+          </Group>
           <Text size="sm" c="dimmed">
             If your wallet owns capability objects, you can publish courses and create proposals.
           </Text>
         </Stack>
       </Group>
 
-      <Alert icon={<IconInfoCircle size={18} />} title="Capabilities" radius="lg">
-        <Stack gap={4}>
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
+        <Card withBorder radius="lg" p="md">
+          <Group justify="space-between">
+            <Stack gap={2}>
+              <Text c="dimmed" size="sm">
+                Wallet
+              </Text>
+              <Badge variant="light" color={account ? 'blue' : 'gray'}>
+                {account ? 'Connected' : 'Not connected'}
+              </Badge>
+            </Stack>
+            <ThemeIcon variant="light" radius="xl" size={34}>
+              <IconUser size={18} />
+            </ThemeIcon>
+          </Group>
+        </Card>
+
+        <Card withBorder radius="lg" p="md">
+          <Group justify="space-between">
+            <Stack gap={2}>
+              <Text c="dimmed" size="sm">
+                TeacherCap
+              </Text>
+              <Badge variant="light" color={hasTeacher ? 'green' : 'gray'}>
+                {hasTeacher ? 'Enabled' : 'Missing'}
+              </Badge>
+            </Stack>
+            <ThemeIcon variant="light" radius="xl" size={34}>
+              <IconBookOpen size={18} />
+            </ThemeIcon>
+          </Group>
+        </Card>
+
+        <Card withBorder radius="lg" p="md">
+          <Group justify="space-between">
+            <Stack gap={2}>
+              <Text c="dimmed" size="sm">
+                AdminCap
+              </Text>
+              <Badge variant="light" color={hasAdmin ? 'green' : 'gray'}>
+                {hasAdmin ? 'Enabled' : 'Missing'}
+              </Badge>
+            </Stack>
+            <ThemeIcon variant="light" radius="xl" size={34}>
+              <IconClipboard size={18} />
+            </ThemeIcon>
+          </Group>
+        </Card>
+
+        <Card withBorder radius="lg" p="md">
+          <Group justify="space-between">
+            <Stack gap={2}>
+              <Text c="dimmed" size="sm">
+                IssuerCap
+              </Text>
+              <Badge variant="light" color={hasIssuer ? 'green' : 'gray'}>
+                {hasIssuer ? 'Enabled' : 'Missing'}
+              </Badge>
+            </Stack>
+            <ThemeIcon variant="light" radius="xl" size={34}>
+              <IconAward size={18} />
+            </ThemeIcon>
+          </Group>
+        </Card>
+      </SimpleGrid>
+
+      <Card withBorder radius="lg" p="lg">
+        <Group gap="xs" align="center">
+          <ThemeIcon variant="light" radius="xl" size={36}>
+            <IconInfoCircle size={18} />
+          </ThemeIcon>
+          <Stack gap={0}>
+            <Text fw={700}>Capabilities</Text>
+            <Text size="sm" c="dimmed">
+              These object IDs determine which admin actions your wallet is allowed to perform.
+            </Text>
+          </Stack>
+        </Group>
+        <Divider my="sm" />
+        <Stack gap={6}>
           <Text size="sm">
             TeacherCap: <Code>{caps.teacherCapId ?? '—'}</Code>
           </Text>
@@ -262,7 +320,7 @@ export function AdminPanel() {
             IssuerCap: <Code>{caps.issuerCapId ?? '—'}</Code>
           </Text>
         </Stack>
-      </Alert>
+      </Card>
 
       <Alert icon={<IconInfoCircle size={18} />} title="init_state (Initialized event)" radius="lg">
         {!APP_CONFIG.packageId ? (
@@ -299,7 +357,10 @@ export function AdminPanel() {
       </Alert>
 
       <Card withBorder radius="lg" p="lg">
-        <Title order={4}>Create course</Title>
+        <Group gap="xs" align="center">
+          <IconBookOpen size={16} />
+          <Title order={4}>Create course</Title>
+        </Group>
         <Stack mt="sm">
           <TextInput label="Title" value={courseTitle} onChange={(e) => setCourseTitle(e.currentTarget.value)} />
           <TextInput
@@ -309,7 +370,7 @@ export function AdminPanel() {
             onChange={(e) => setCourseUri(e.currentTarget.value)}
           />
           <Group justify="flex-end">
-            <Button onClick={createCourse} loading={txPending} disabled={!account}>
+            <Button onClick={createCourse} loading={txPending} disabled={!account} leftSection={<IconPlusCircle size={16} />}>
               Create course
             </Button>
           </Group>
@@ -317,17 +378,21 @@ export function AdminPanel() {
       </Card>
 
       <Card withBorder radius="lg" p="lg">
-        <Title order={4}>Mark course completed (submit result)</Title>
+        <Group gap="xs" align="center">
+          <IconCheckCircle size={16} />
+          <Title order={4}>Complete course + issue certificate</Title>
+        </Group>
         <Text size="sm" c="dimmed" mt={4}>
-          Teacher-only. This sets the student’s enrollment to <b>completed</b> and records a score. Required before issuing a certificate.
+          One click. This submits the result (completed + score) and issues the owned Certificate in the same transaction.
+          Requires <b>TeacherCap</b> + <b>IssuerCap</b>.
         </Text>
         <Stack mt="sm">
           <Select
             label="Course"
             placeholder={courseOptions.length ? 'Select a course…' : 'No courses found yet'}
             data={courseOptions}
-            value={resultCourseId}
-            onChange={(v) => setResultCourseId(v ?? '')}
+            value={completeCourseId}
+            onChange={(v) => setCompleteCourseId(v ?? '')}
             searchable
             nothingFoundMessage="No matching courses"
             disabled={!courseOptions.length}
@@ -335,56 +400,34 @@ export function AdminPanel() {
           <TextInput
             label="Student address"
             placeholder="0x..."
-            value={resultStudent}
-            onChange={(e) => setResultStudent(e.currentTarget.value)}
+            value={completeStudent}
+            onChange={(e) => setCompleteStudent(e.currentTarget.value)}
           />
-          <NumberInput label="Score" value={resultScore} onChange={(v) => setResultScore(Number(v))} min={0} />
-          <Group justify="flex-end">
-            <Button onClick={submitResult} loading={txPending} disabled={!account}>
-              Submit result
-            </Button>
-          </Group>
-        </Stack>
-      </Card>
-
-      <Card withBorder radius="lg" p="lg">
-        <Title order={4}>Issue certificate</Title>
-        <Text size="sm" c="dimmed" mt={4}>
-          Mints an owned Certificate object to the student address (requires the student to have completed the course).
-        </Text>
-        <Stack mt="sm">
-          <Select
-            label="Course"
-            placeholder={courseOptions.length ? 'Select a course…' : 'No courses found yet'}
-            data={courseOptions}
-            value={certCourseId}
-            onChange={(v) => setCertCourseId(v ?? '')}
-            searchable
-            nothingFoundMessage="No matching courses"
-            disabled={!courseOptions.length}
-          />
-          <TextInput
-            label="Student address"
-            placeholder="0x..."
-            value={certStudent}
-            onChange={(e) => setCertStudent(e.currentTarget.value)}
-          />
+          <NumberInput label="Score" value={completeScore} onChange={(v) => setCompleteScore(Number(v))} min={0} />
           <TextInput
             label="Metadata URI"
             description='Optional. You can leave this blank and use the "Hosted metadata" link shown on Profile after mint.'
-            value={certMetadataUri}
-            onChange={(e) => setCertMetadataUri(e.currentTarget.value)}
+            value={completeMetadataUri}
+            onChange={(e) => setCompleteMetadataUri(e.currentTarget.value)}
           />
           <Group justify="flex-end">
-            <Button onClick={issueCertificate} loading={txPending} disabled={!account}>
-              Issue certificate
+            <Button
+              onClick={completeAndIssue}
+              loading={txPending}
+              disabled={!account}
+              leftSection={<IconAward size={16} />}
+            >
+              Complete + Issue
             </Button>
           </Group>
         </Stack>
       </Card>
 
       <Card withBorder radius="lg" p="lg">
-        <Title order={4}>Create proposal</Title>
+        <Group gap="xs" align="center">
+          <IconClipboard size={16} />
+          <Title order={4}>Create proposal</Title>
+        </Group>
         <Stack mt="sm">
           <TextInput label="Title" value={proposalTitle} onChange={(e) => setProposalTitle(e.currentTarget.value)} />
           <Textarea
@@ -394,7 +437,7 @@ export function AdminPanel() {
             onChange={(e) => setProposalDesc(e.currentTarget.value)}
           />
           <Group justify="flex-end">
-            <Button onClick={createProposal} loading={txPending} disabled={!account}>
+            <Button onClick={createProposal} loading={txPending} disabled={!account} leftSection={<IconPlusCircle size={16} />}>
               Create proposal
             </Button>
           </Group>

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { Alert, Button, Group, Stack, Text } from "@mantine/core"
-import { IconAlertCircle, IconExternalLink } from "@tabler/icons-react"
+import { IconAlertCircle } from "@tabler/icons-react"
+import { IconExternalLink } from "@/components/icons/feather"
 import { useCurrentAccount, useSuiClient } from "@mysten/dapp-kit"
 import { APP_CONFIG } from "@/lib/config"
 

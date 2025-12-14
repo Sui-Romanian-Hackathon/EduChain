@@ -118,6 +118,49 @@ export async function buildIssueCertificateTx(
   return tx;
 }
 
+export async function buildSubmitResultAndIssueCertificateTx(
+  _client: SuiClient,
+  args: {
+    teacherCapId: string;
+    issuerCapId: string;
+    courseId: string | number;
+    student: string;
+    score: string | number;
+    metadataUri: string;
+  },
+) {
+  if (!APP_CONFIG.courseCatalogId) throw new Error('Missing NEXT_PUBLIC_COURSE_CATALOG_ID');
+
+  const tx = new Transaction();
+
+  // 1) Mark completed + record score
+  tx.moveCall({
+    target: moveTarget('educhain', 'submit_result'),
+    arguments: [
+      tx.object(args.teacherCapId),
+      tx.object(APP_CONFIG.courseCatalogId),
+      tx.pure.u64(args.courseId),
+      tx.pure.address(args.student),
+      tx.pure.bool(true),
+      tx.pure.u64(args.score),
+    ],
+  });
+
+  // 2) Issue the certificate (same tx => sees the updated on-chain state)
+  tx.moveCall({
+    target: moveTarget('educhain', 'issue_certificate'),
+    arguments: [
+      tx.object(args.issuerCapId),
+      tx.object(APP_CONFIG.courseCatalogId),
+      tx.pure.u64(args.courseId),
+      tx.pure.address(args.student),
+      tx.pure.string(args.metadataUri),
+    ],
+  });
+
+  return tx;
+}
+
 export async function buildSubmitResultTx(
   _client: SuiClient,
   args: {
