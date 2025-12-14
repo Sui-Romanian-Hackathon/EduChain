@@ -1,5 +1,9 @@
 # EduCityChain (Sui)
 
+<div align="center">
+  <img src="educhain-frontend/public/eduChainLogo.png" alt="EduCityChain Logo" width="200" />
+</div>
+
 EduCityChain is a Sui-based dApp for **education + civic participation**:
 
 - **📚 Courses**: teachers create courses; students enroll; teachers submit results

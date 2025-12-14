@@ -1,5 +1,9 @@
 # EduCityChain Frontend
 
+<div align="center">
+  <img src="./public/eduChainLogo.png" alt="EduCityChain Logo" width="200" />
+</div>
+
 > A modern, responsive Next.js frontend for the EduCityChain decentralized education platform built on Sui blockchain.
 
 ## 📋 Table of Contents
@@ -68,15 +72,15 @@ The frontend seamlessly integrates with the Sui blockchain using `@mysten/dapp-k
 
 ### Core Dependencies
 
-| Package | Version | Purpose |
-|--------|---------|---------|
-| **Next.js** | 14.2.35 | React framework with SSR support |
-| **React** | 18.3.1 | UI library |
-| **TypeScript** | 5.6.3 | Type-safe development |
-| **Mantine** | 7.17.8 | UI component library |
-| **@mysten/dapp-kit** | 0.19.6 | Sui wallet integration |
-| **@mysten/sui** | 1.45.2 | Sui blockchain SDK |
-| **@tanstack/react-query** | 5.90.12 | Data fetching and caching |
+| Package                   | Version | Purpose                          |
+| ------------------------- | ------- | -------------------------------- |
+| **Next.js**               | 14.2.35 | React framework with SSR support |
+| **React**                 | 18.3.1  | UI library                       |
+| **TypeScript**            | 5.6.3   | Type-safe development            |
+| **Mantine**               | 7.17.8  | UI component library             |
+| **@mysten/dapp-kit**      | 0.19.6  | Sui wallet integration           |
+| **@mysten/sui**           | 1.45.2  | Sui blockchain SDK               |
+| **@tanstack/react-query** | 5.90.12 | Data fetching and caching        |
 
 ### UI Components
 
@@ -162,14 +166,14 @@ NEXT_PUBLIC_BACKEND_URL=http://localhost:8080
 
 ### Variable Descriptions
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NEXT_PUBLIC_SUI_NETWORK` | ✅ Yes | Network: `localnet`, `devnet`, `testnet`, or `mainnet` |
-| `NEXT_PUBLIC_SUI_PACKAGE_ID` | ✅ Yes | Deployed Move package ID |
-| `NEXT_PUBLIC_COURSE_CATALOG_ID` | ✅ Yes | CourseCatalog shared object ID |
-| `NEXT_PUBLIC_PROPOSAL_REGISTRY_ID` | ✅ Yes | ProposalRegistry shared object ID |
-| `NEXT_PUBLIC_SUI_RPC_URL` | ❌ No | Custom RPC endpoint (defaults to Mysten fullnodes) |
-| `NEXT_PUBLIC_BACKEND_URL` | ❌ No | Backend API URL for indexed events |
+| Variable                           | Required | Description                                            |
+| ---------------------------------- | -------- | ------------------------------------------------------ |
+| `NEXT_PUBLIC_SUI_NETWORK`          | ✅ Yes   | Network: `localnet`, `devnet`, `testnet`, or `mainnet` |
+| `NEXT_PUBLIC_SUI_PACKAGE_ID`       | ✅ Yes   | Deployed Move package ID                               |
+| `NEXT_PUBLIC_COURSE_CATALOG_ID`    | ✅ Yes   | CourseCatalog shared object ID                         |
+| `NEXT_PUBLIC_PROPOSAL_REGISTRY_ID` | ✅ Yes   | ProposalRegistry shared object ID                      |
+| `NEXT_PUBLIC_SUI_RPC_URL`          | ❌ No    | Custom RPC endpoint (defaults to Mysten fullnodes)     |
+| `NEXT_PUBLIC_BACKEND_URL`          | ❌ No    | Backend API URL for indexed events                     |
 
 **⚠️ Important**: After changing `.env.local`, you must **restart** the development server for changes to take effect.
 
@@ -226,6 +230,7 @@ npm start
 ### Build Output
 
 The build process creates:
+
 - Optimized JavaScript bundles
 - Static HTML pages (where applicable)
 - Optimized CSS
@@ -295,6 +300,7 @@ educhain-frontend/
 - Wallet address appears in header
 
 **Features**:
+
 - Copy address to clipboard
 - Disconnect wallet
 - Network badge display
@@ -304,12 +310,14 @@ educhain-frontend/
 **Location**: Profile tab (`/dashboard?tab=profile`)
 
 **Create Profile**:
+
 - Click "Create Profile" button
 - Approve transaction in wallet
 - Profile object created on-chain
 - Initial points: 0 education, 0 civic
 
 **View Profile**:
+
 - Education points (earned from enrollments)
 - Civic points (earned from votes)
 - Enrolled courses list (derived from `Enrolled` events)
@@ -323,12 +331,14 @@ educhain-frontend/
 **Location**: Courses tab (`/dashboard?tab=courses`)
 
 **Browse Courses**:
+
 - Grid layout with course cards
 - Search by title
 - Filter by completion status
 - View course details (title, content URI, ID)
 
 **Enroll in Course**:
+
 - Click "Enroll" button on course card
 - Approve transaction
 - Education points increase by 1
@@ -341,12 +351,14 @@ educhain-frontend/
 **Location**: Proposals tab (`/dashboard?tab=proposals`)
 
 **Browse Proposals**:
+
 - Grid layout with proposal cards
 - Search by title
 - View proposal details (title, description)
 - See voting progress (Yes/No counts, progress bar)
 
 **Vote on Proposal**:
+
 - Click "Yes" or "No" button
 - Approve transaction
 - Civic points increase by 1
@@ -359,24 +371,28 @@ educhain-frontend/
 **Location**: Admin tab (`/dashboard?tab=admin`)
 
 **Create Course** (requires TeacherCap):
+
 - Enter course title
 - Enter content URI (IPFS/Arweave/HTTPS)
 - Click "Create course"
 - Course added to CourseCatalog
 
 **Create Proposal** (requires AdminCap):
+
 - Enter proposal title
 - Enter description
 - Click "Create proposal"
 - Proposal added to ProposalRegistry
 
 **Submit result / mark completed** (requires TeacherCap):
+
 - Select course from dropdown
 - Enter student address + score
 - Click "Submit result"
 - Completion is reflected in UI via `ResultSubmitted` events
 
 **Issue certificate** (requires IssuerCap):
+
 - Select course from dropdown
 - Enter student address
 - (Optional) metadata URI
@@ -386,6 +402,7 @@ educhain-frontend/
 ### 6. Gas Management
 
 **Faucet Integration**:
+
 - "Get Test SUI" button in header
 - Automatic address copying
 - Network-specific instructions
@@ -394,6 +411,7 @@ educhain-frontend/
 - Localnet: CLI command
 
 **Balance Monitoring**:
+
 - Automatic balance checking
 - Low balance alerts (< 0.1 SUI)
 - Balance display in notifications
@@ -407,6 +425,7 @@ educhain-frontend/
 The frontend uses a **dual-source approach**:
 
 1. **Primary**: Backend API (if `NEXT_PUBLIC_BACKEND_URL` is set)
+
    - Faster event queries
    - Indexed data
    - Falls back to chain if unavailable
@@ -439,11 +458,11 @@ This returns a JSON metadata document generated from the on-chain `Certificate` 
 All transactions use Sui **Programmable Transaction Blocks (PTB)**:
 
 ```typescript
-const tx = new Transaction();
+const tx = new Transaction()
 tx.moveCall({
-  target: `${PACKAGE_ID}::educhain::enroll`,
-  arguments: [catalog, profile, courseId],
-});
+	target: `${PACKAGE_ID}::educhain::enroll`,
+	arguments: [catalog, profile, courseId]
+})
 ```
 
 Transactions are signed and executed via `useSignAndExecuteTransaction()` hook, which prompts the user's wallet.
@@ -459,6 +478,7 @@ Transactions are signed and executed via `useSignAndExecuteTransaction()` hook, 
 **Problem**: Wallet connection fails or doesn't appear
 
 **Solutions**:
+
 - Ensure wallet extension is installed and unlocked
 - Refresh the page
 - Check browser console for errors
@@ -469,6 +489,7 @@ Transactions are signed and executed via `useSignAndExecuteTransaction()` hook, 
 **Problem**: "No Profile found" message
 
 **Solutions**:
+
 - Create a profile using "Create Profile" button
 - Ensure wallet is connected
 - Check you have sufficient SUI for gas
@@ -478,6 +499,7 @@ Transactions are signed and executed via `useSignAndExecuteTransaction()` hook, 
 **Problem**: Transactions fail with errors
 
 **Solutions**:
+
 - Check gas balance (use faucet if needed)
 - Verify network matches your wallet
 - Ensure all required objects exist
@@ -488,6 +510,7 @@ Transactions are signed and executed via `useSignAndExecuteTransaction()` hook, 
 **Problem**: Yellow alert about low balance
 
 **Solutions**:
+
 - Click "Get Test SUI" button
 - Follow faucet instructions for your network
 - Wait for tokens to arrive (may take a few minutes)
@@ -497,6 +520,7 @@ Transactions are signed and executed via `useSignAndExecuteTransaction()` hook, 
 **Problem**: Red alerts about missing configuration
 
 **Solutions**:
+
 - Verify all required env vars are set in `.env.local`
 - Restart dev server after changing env vars
 - Check object IDs are correct (from `init_state` event)
@@ -506,6 +530,7 @@ Transactions are signed and executed via `useSignAndExecuteTransaction()` hook, 
 **Problem**: Slow loading or backend errors
 
 **Solutions**:
+
 - Backend is optional - app falls back to chain queries
 - Check `NEXT_PUBLIC_BACKEND_URL` is correct
 - Verify backend is running (if using)
