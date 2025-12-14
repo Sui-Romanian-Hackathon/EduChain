@@ -46,7 +46,20 @@ export function CoursesPanel() {
 		return courses.filter((c) => (c.title ?? "").toLowerCase().includes(q))
 	}, [courses, filter])
 
+	const requireWallet = () => {
+		if (!account) {
+			notifications.show({
+				color: "blue",
+				title: "Wallet required",
+				message: "Please connect your wallet to perform this action."
+			})
+			return false
+		}
+		return true
+	}
+
 	const onCreateProfile = async () => {
+		if (!requireWallet()) return
 		if (!APP_CONFIG.packageId) {
 			notifications.show({
 				color: "red",
@@ -73,6 +86,7 @@ export function CoursesPanel() {
 	}
 
 	const onEnroll = async (courseId: number) => {
+		if (!requireWallet()) return
 		if (!profile) {
 			notifications.show({ color: "yellow", title: "No Profile", message: "Create your Profile first." })
 			return
@@ -173,29 +187,34 @@ export function CoursesPanel() {
 				{!profile && (
 					<Group>
 						<Tooltip
-							label="Set NEXT_PUBLIC_SUI_PACKAGE_ID in educhain-frontend/.env.local and restart `npm run dev`."
-							disabled={canCreateProfile}
+							label={
+								!account
+									? "Connect your wallet"
+									: !canCreateProfile
+									? "Set NEXT_PUBLIC_SUI_PACKAGE_ID in educhain-frontend/.env.local and restart `npm run dev`."
+									: ""
+							}
+							disabled={canCreateProfile && !!account}
 							withArrow
 						>
-							<Button
-								onClick={onCreateProfile}
-								loading={txPending}
-								disabled={!canCreateProfile}
-								visibleFrom="sm"
-								leftSection={<IconPlusCircle size={16} />}
-							>
+							<Button onClick={onCreateProfile} loading={txPending} visibleFrom="sm" leftSection={<IconPlusCircle size={16} />}>
 								Create Profile
 							</Button>
 						</Tooltip>
 						<Tooltip
-							label="Set NEXT_PUBLIC_SUI_PACKAGE_ID in educhain-frontend/.env.local and restart `npm run dev`."
-							disabled={canCreateProfile}
+							label={
+								!account
+									? "Connect your wallet"
+									: !canCreateProfile
+									? "Set NEXT_PUBLIC_SUI_PACKAGE_ID in educhain-frontend/.env.local and restart `npm run dev`."
+									: ""
+							}
+							disabled={canCreateProfile && !!account}
 							withArrow
 						>
 							<Button
 								onClick={onCreateProfile}
 								loading={txPending}
-								disabled={!canCreateProfile}
 								fullWidth
 								hiddenFrom="sm"
 								leftSection={<IconPlusCircle size={16} />}
@@ -284,18 +303,22 @@ export function CoursesPanel() {
 										<Badge color={done ? "green" : isEnrolled ? "blue" : "gray"} variant="light">
 											{done ? "Completed" : isEnrolled ? "Enrolled" : "Not enrolled"}
 										</Badge>
-										<Button
-											size="sm"
-											variant={done || isEnrolled ? "light" : "filled"}
-											disabled={!profile || done || isEnrolled}
-											loading={txPending}
-											onClick={() => onEnroll(c.id)}
-											leftSection={
-												done || isEnrolled ? <IconCheckCircle size={16} /> : <IconArrowRight size={16} />
-											}
+										<Tooltip
+											label={!account ? "Connect your wallet" : !profile ? "Create your profile first" : ""}
+											disabled={!!account && !!profile}
+											withArrow
 										>
-											{done ? "Done" : isEnrolled ? "Enrolled" : "Enroll"}
-										</Button>
+											<Button
+												size="sm"
+												variant={done || isEnrolled ? "light" : "filled"}
+												disabled={done || isEnrolled}
+												loading={txPending}
+												onClick={() => onEnroll(c.id)}
+												leftSection={done || isEnrolled ? <IconCheckCircle size={16} /> : <IconArrowRight size={16} />}
+											>
+												{done ? "Done" : isEnrolled ? "Enrolled" : "Enroll"}
+											</Button>
+										</Tooltip>
 									</Group>
 								</Stack>
 							</Card>

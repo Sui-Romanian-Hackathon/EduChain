@@ -17,7 +17,8 @@ import {
 	SimpleGrid,
 	ThemeIcon,
 	Badge,
-	Divider
+	Divider,
+	Tooltip
 } from "@mantine/core"
 import { notifications } from "@mantine/notifications"
 import { IconInfoCircle } from "@tabler/icons-react"
@@ -101,7 +102,20 @@ export function AdminPanel() {
 		if (!completeCourseId && courseOptions.length) setCompleteCourseId(courseOptions[0].value)
 	}, [courseOptions, completeCourseId])
 
+	const requireWallet = () => {
+		if (!account) {
+			notifications.show({
+				color: "blue",
+				title: "Wallet required",
+				message: "Please connect your wallet to perform this action."
+			})
+			return false
+		}
+		return true
+	}
+
 	const createCourse = async () => {
+		if (!requireWallet()) return
 		if (!APP_CONFIG.packageId || !APP_CONFIG.courseCatalogId) {
 			notifications.show({
 				color: "red",
@@ -136,6 +150,7 @@ export function AdminPanel() {
 	}
 
 	const createProposal = async () => {
+		if (!requireWallet()) return
 		if (!APP_CONFIG.packageId || !APP_CONFIG.proposalRegistryId) {
 			notifications.show({
 				color: "red",
@@ -171,6 +186,7 @@ export function AdminPanel() {
 	}
 
 	const completeAndIssue = async () => {
+		if (!requireWallet()) return
 		if (!APP_CONFIG.packageId || !APP_CONFIG.courseCatalogId) {
 			notifications.show({
 				color: "red",
@@ -381,9 +397,11 @@ export function AdminPanel() {
 						onChange={(e) => setCourseUri(e.currentTarget.value)}
 					/>
 					<Group justify="flex-end">
-						<Button onClick={createCourse} loading={txPending} disabled={!account} leftSection={<IconPlusCircle size={16} />}>
-							Create course
-						</Button>
+						<Tooltip label="Connect your wallet" disabled={!!account} withArrow>
+							<Button onClick={createCourse} loading={txPending} leftSection={<IconPlusCircle size={16} />}>
+								Create course
+							</Button>
+						</Tooltip>
 					</Group>
 				</Stack>
 			</Card>
@@ -422,9 +440,11 @@ export function AdminPanel() {
 						onChange={(e) => setCompleteMetadataUri(e.currentTarget.value)}
 					/>
 					<Group justify="flex-end">
-						<Button onClick={completeAndIssue} loading={txPending} disabled={!account} leftSection={<IconAward size={16} />}>
-							Complete + Issue
-						</Button>
+						<Tooltip label="Connect your wallet" disabled={!!account} withArrow>
+							<Button onClick={completeAndIssue} loading={txPending} leftSection={<IconAward size={16} />}>
+								Complete + Issue
+							</Button>
+						</Tooltip>
 					</Group>
 				</Stack>
 			</Card>
@@ -443,9 +463,11 @@ export function AdminPanel() {
 						onChange={(e) => setProposalDesc(e.currentTarget.value)}
 					/>
 					<Group justify="flex-end">
-						<Button onClick={createProposal} loading={txPending} disabled={!account} leftSection={<IconPlusCircle size={16} />}>
-							Create proposal
-						</Button>
+						<Tooltip label="Connect your wallet" disabled={!!account} withArrow>
+							<Button onClick={createProposal} loading={txPending} leftSection={<IconPlusCircle size={16} />}>
+								Create proposal
+							</Button>
+						</Tooltip>
 					</Group>
 				</Stack>
 			</Card>

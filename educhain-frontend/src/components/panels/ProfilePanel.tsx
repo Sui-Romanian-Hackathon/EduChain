@@ -119,6 +119,18 @@ export function ProfilePanel() {
 		notifications.show({ message: "Address copied" })
 	}
 
+	const requireWallet = () => {
+		if (!account) {
+			notifications.show({
+				color: "blue",
+				title: "Wallet required",
+				message: "Please connect your wallet to perform this action."
+			})
+			return false
+		}
+		return true
+	}
+
 	const onShowMetadata = async (certificateId: string) => {
 		setSelectedCertificateId(certificateId)
 		setMetadataModalOpened(true)
@@ -227,42 +239,63 @@ export function ProfilePanel() {
 				</Stack>
 
 				<Group visibleFrom="sm">
-					<Button
-						variant="light"
-						onClick={refreshAll}
-						loading={isPending}
-						disabled={!account}
-						leftSection={<IconRefreshCw size={16} />}
-					>
-						Refresh
-					</Button>
-					{!profile && (
-						<Button onClick={onCreateProfile} loading={txPending} disabled={!account} leftSection={<IconPlusCircle size={16} />}>
-							Create Profile
+					<Tooltip label="Connect your wallet" disabled={!!account} withArrow>
+						<Button
+							variant="light"
+							onClick={() => {
+								if (!requireWallet()) return
+								refreshAll()
+							}}
+							loading={isPending}
+							leftSection={<IconRefreshCw size={16} />}
+						>
+							Refresh
 						</Button>
+					</Tooltip>
+					{!profile && (
+						<Tooltip label="Connect your wallet" disabled={!!account} withArrow>
+							<Button
+								onClick={() => {
+									if (!requireWallet()) return
+									onCreateProfile()
+								}}
+								loading={txPending}
+								leftSection={<IconPlusCircle size={16} />}
+							>
+								Create Profile
+							</Button>
+						</Tooltip>
 					)}
 				</Group>
 				<Stack gap="xs" hiddenFrom="sm">
-					<Button
-						variant="light"
-						onClick={refreshAll}
-						loading={isPending}
-						disabled={!account}
-						fullWidth
-						leftSection={<IconRefreshCw size={16} />}
-					>
-						Refresh
-					</Button>
-					{!profile && (
+					<Tooltip label="Connect your wallet" disabled={!!account} withArrow>
 						<Button
-							onClick={onCreateProfile}
-							loading={txPending}
-							disabled={!account}
+							variant="light"
+							onClick={() => {
+								if (!requireWallet()) return
+								refreshAll()
+							}}
+							loading={isPending}
 							fullWidth
-							leftSection={<IconPlusCircle size={16} />}
+							leftSection={<IconRefreshCw size={16} />}
 						>
-							Create Profile
+							Refresh
 						</Button>
+					</Tooltip>
+					{!profile && (
+						<Tooltip label="Connect your wallet" disabled={!!account} withArrow>
+							<Button
+								onClick={() => {
+									if (!requireWallet()) return
+									onCreateProfile()
+								}}
+								loading={txPending}
+								fullWidth
+								leftSection={<IconPlusCircle size={16} />}
+							>
+								Create Profile
+							</Button>
+						</Tooltip>
 					)}
 				</Stack>
 			</Stack>
@@ -973,16 +1006,20 @@ export function ProfilePanel() {
 										</Text>
 									</Stack>
 								</Group>
-								<Button
-									variant="light"
-									size="xs"
-									leftSection={<IconRefreshCw size={14} />}
-									onClick={refreshAll}
-									disabled={!account}
-									style={{ flexShrink: 0 }}
-								>
-									Refresh data
-								</Button>
+								<Tooltip label="Connect your wallet" disabled={!!account} withArrow>
+									<Button
+										variant="light"
+										size="xs"
+										leftSection={<IconRefreshCw size={14} />}
+										onClick={() => {
+											if (!requireWallet()) return
+											refreshAll()
+										}}
+										style={{ flexShrink: 0 }}
+									>
+										Refresh data
+									</Button>
+								</Tooltip>
 							</Group>
 						</Card>
 
