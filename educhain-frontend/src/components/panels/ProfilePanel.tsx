@@ -527,9 +527,9 @@ export function ProfilePanel() {
 																<Text
 																	size="xs"
 																	c="blue"
+																	td="underline"
 																	style={{ cursor: "pointer" }}
 																	onClick={() => setLearningSnapshotExpanded(!learningSnapshotExpanded)}
-																	underline
 																>
 																	{learningSnapshotExpanded
 																		? "Show less"
