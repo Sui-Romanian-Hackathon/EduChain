@@ -1,56 +1,192 @@
-html, body {
-  height: 100%;
+html,
+body {
+	min-height: 100%;
 }
 body {
-  margin: 0;
+	margin: 0;
+	background-attachment: fixed;
 }
 
 /* Animate gradient anchor points (custom properties) */
-@property --blob1x { syntax: "<percentage>"; inherits: true; initial-value: 10%; }
-@property --blob1y { syntax: "<percentage>"; inherits: true; initial-value: 0%; }
-@property --blob2x { syntax: "<percentage>"; inherits: true; initial-value: 90%; }
-@property --blob2y { syntax: "<percentage>"; inherits: true; initial-value: 10%; }
-@property --blob3x { syntax: "<percentage>"; inherits: true; initial-value: 40%; }
-@property --blob3y { syntax: "<percentage>"; inherits: true; initial-value: 100%; }
+@property --blob1x {
+	syntax: "<percentage>";
+	inherits: true;
+	initial-value: 10%;
+}
+@property --blob1y {
+	syntax: "<percentage>";
+	inherits: true;
+	initial-value: 0%;
+}
+@property --blob2x {
+	syntax: "<percentage>";
+	inherits: true;
+	initial-value: 90%;
+}
+@property --blob2y {
+	syntax: "<percentage>";
+	inherits: true;
+	initial-value: 10%;
+}
+@property --blob3x {
+	syntax: "<percentage>";
+	inherits: true;
+	initial-value: 40%;
+}
+@property --blob3y {
+	syntax: "<percentage>";
+	inherits: true;
+	initial-value: 100%;
+}
 
-html, body {
-  --blob1x: 10%;
-  --blob1y: 0%;
-  --blob2x: 90%;
-  --blob2y: 10%;
-  --blob3x: 40%;
-  --blob3y: 100%;
+@property --blob1w {
+	syntax: "<length>";
+	inherits: true;
+	initial-value: 900px;
+}
+@property --blob1h {
+	syntax: "<length>";
+	inherits: true;
+	initial-value: 500px;
+}
+@property --blob2w {
+	syntax: "<length>";
+	inherits: true;
+	initial-value: 700px;
+}
+@property --blob2h {
+	syntax: "<length>";
+	inherits: true;
+	initial-value: 450px;
+}
+@property --blob3w {
+	syntax: "<length>";
+	inherits: true;
+	initial-value: 800px;
+}
+@property --blob3h {
+	syntax: "<length>";
+	inherits: true;
+	initial-value: 500px;
+}
+
+@property --blob1a {
+	syntax: "<number>";
+	inherits: true;
+	initial-value: 0.12;
+}
+@property --blob2a {
+	syntax: "<number>";
+	inherits: true;
+	initial-value: 0.1;
+}
+@property --blob3a {
+	syntax: "<number>";
+	inherits: true;
+	initial-value: 0.08;
+}
+
+html,
+body {
+	--blob1x: 10%;
+	--blob1y: 0%;
+	--blob2x: 90%;
+	--blob2y: 10%;
+	--blob3x: 40%;
+	--blob3y: 100%;
+
+	--blob1w: 900px;
+	--blob1h: 500px;
+	--blob2w: 700px;
+	--blob2h: 450px;
+	--blob3w: 800px;
+	--blob3h: 500px;
+
+	--blob1a: 0.12;
+	--blob2a: 0.1;
+	--blob3a: 0.08;
 }
 
 body {
-  transition:
-    --blob1x 2200ms ease,
-    --blob1y 2200ms ease,
-    --blob2x 2400ms ease,
-    --blob2y 2400ms ease,
-    --blob3x 2600ms ease,
-    --blob3y 2600ms ease;
+	transition: --blob1x 2200ms ease, --blob1y 2200ms ease, --blob2x 2400ms ease, --blob2y 2400ms ease, --blob3x 2600ms ease,
+		--blob3y 2600ms ease;
+}
+
+@keyframes educhainBlobPulse {
+	0% {
+		--blob1w: 860px;
+		--blob1h: 470px;
+		--blob1a: 0.1;
+		--blob2w: 660px;
+		--blob2h: 420px;
+		--blob2a: 0.085;
+		--blob3w: 760px;
+		--blob3h: 470px;
+		--blob3a: 0.065;
+	}
+	50% {
+		--blob1w: 940px;
+		--blob1h: 520px;
+		--blob1a: 0.14;
+		--blob2w: 720px;
+		--blob2h: 470px;
+		--blob2a: 0.115;
+		--blob3w: 820px;
+		--blob3h: 520px;
+		--blob3a: 0.095;
+	}
+	100% {
+		--blob1w: 880px;
+		--blob1h: 485px;
+		--blob1a: 0.11;
+		--blob2w: 675px;
+		--blob2h: 435px;
+		--blob2a: 0.09;
+		--blob3w: 780px;
+		--blob3h: 485px;
+		--blob3a: 0.07;
+	}
 }
 
 /* Friendly, subtle backgrounds per theme */
 html[data-mantine-color-scheme="light"] body {
-  background:
-    radial-gradient(900px 500px at var(--blob1x) var(--blob1y), rgba(99, 102, 241, 0.12), transparent 60%),
-    radial-gradient(700px 450px at var(--blob2x) var(--blob2y), rgba(34, 197, 94, 0.10), transparent 55%),
-    radial-gradient(800px 500px at var(--blob3x) var(--blob3y), rgba(236, 72, 153, 0.08), transparent 55%),
-    var(--mantine-color-body);
+	background: radial-gradient(
+			var(--blob1w) var(--blob1h) at var(--blob1x) var(--blob1y),
+			rgb(99 102 241 / var(--blob1a)),
+			transparent 60%
+		),
+		radial-gradient(var(--blob2w) var(--blob2h) at var(--blob2x) var(--blob2y), rgb(34 197 94 / var(--blob2a)), transparent 55%),
+		radial-gradient(var(--blob3w) var(--blob3h) at var(--blob3x) var(--blob3y), rgb(236 72 153 / var(--blob3a)), transparent 55%),
+		var(--mantine-color-body);
 }
 
 html[data-mantine-color-scheme="dark"] body {
-  background:
-    radial-gradient(900px 500px at var(--blob1x) var(--blob1y), rgba(99, 102, 241, 0.20), transparent 60%),
-    radial-gradient(700px 450px at var(--blob2x) var(--blob2y), rgba(34, 197, 94, 0.12), transparent 55%),
-    radial-gradient(800px 500px at var(--blob3x) var(--blob3y), rgba(236, 72, 153, 0.10), transparent 55%),
-    var(--mantine-color-body);
+	background: radial-gradient(
+			var(--blob1w) var(--blob1h) at var(--blob1x) var(--blob1y),
+			rgb(99 102 241 / calc(var(--blob1a) + 0.08)),
+			transparent 60%
+		),
+		radial-gradient(
+			var(--blob2w) var(--blob2h) at var(--blob2x) var(--blob2y),
+			rgb(34 197 94 / calc(var(--blob2a) + 0.03)),
+			transparent 55%
+		),
+		radial-gradient(
+			var(--blob3w) var(--blob3h) at var(--blob3x) var(--blob3y),
+			rgb(236 72 153 / calc(var(--blob3a) + 0.02)),
+			transparent 55%
+		),
+		var(--mantine-color-body);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body {
-    transition: none;
-  }
+	body {
+		transition: none;
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	body {
+		animation: educhainBlobPulse 7.5s ease-in-out infinite;
+	}
 }

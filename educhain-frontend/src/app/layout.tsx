@@ -11,6 +11,10 @@ import { Providers } from './providers';
 export const metadata: Metadata = {
   title: 'EduCityChain',
   description: 'Education + civic engagement on Sui',
+  icons: {
+    icon: '/eduChainLogo.png',
+    apple: '/eduChainLogo.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

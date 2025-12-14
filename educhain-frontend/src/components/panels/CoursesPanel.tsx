@@ -97,7 +97,7 @@ export function CoursesPanel() {
 	const chainHint = `Using chain: sui:${APP_CONFIG.network}`
 	const canCreateProfile = Boolean(account) && Boolean(APP_CONFIG.packageId)
 	const totalCourses = courses.length
-	const enrolledCount = enrollments.length
+	const enrolledCount = enrollments.filter((e) => !completedCourseIds.has(e.courseId)).length
 	const completedCount = completedCourseIds.size
 
 	return (

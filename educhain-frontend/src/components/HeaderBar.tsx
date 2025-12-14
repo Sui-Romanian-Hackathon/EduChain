@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Image from "next/image"
 import { Group, Text, Badge, Menu, Box } from "@mantine/core"
 import { IconChevronDown, IconCopy, IconLogOut } from "./icons/feather"
 import { ConnectButton, useCurrentAccount, useDisconnectWallet, useSuiClientContext } from "@mysten/dapp-kit"
@@ -31,9 +32,21 @@ export function HeaderBar() {
 	return (
 		<Group justify="space-between" w="100%" wrap="nowrap" gap="xs" style={{ overflow: "hidden" }}>
 			<Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
-				<Text fw={700} size="xs" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-					EduCityChain
-				</Text>
+				<Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
+					<Box style={{ width: 32, height: 32, flexShrink: 0 }}>
+						<Image
+							src="/eduChainLogo.png"
+							alt="EduChain logo"
+							width={32}
+							height={32}
+							priority
+							style={{ width: "100%", height: "100%", objectFit: "contain" }}
+						/>
+					</Box>
+					<Text fw={700} size="xs" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+						EduCityChain
+					</Text>
+				</Group>
 				<Badge variant="light" size="xs" visibleFrom="sm">
 					{displayNetwork}
 				</Badge>
